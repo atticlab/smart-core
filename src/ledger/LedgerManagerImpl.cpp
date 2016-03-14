@@ -161,13 +161,13 @@ LedgerManagerImpl::startNewLedger()
     SecretKey skey = SecretKey::fromSeed(mApp.getNetworkID());
 
     AccountFrame masterAccount(skey.getPublicKey());
-    masterAccount.getAccount().balance = 1000000000000000000;
+    masterAccount.getAccount().balance = 0;
     LedgerHeader genesisHeader;
 
     // all fields are initialized by default to 0
     // set the ones that are not 0
-    genesisHeader.baseFee = 100;
-    genesisHeader.baseReserve = 100000000;
+    genesisHeader.baseFee = 0;
+    genesisHeader.baseReserve = 0;
     genesisHeader.maxTxSetSize = 100; // 100 tx/ledger max
     genesisHeader.totalCoins = masterAccount.getAccount().balance;
     genesisHeader.ledgerSeq = 1;
@@ -725,9 +725,6 @@ LedgerManagerImpl::closeLedger(LedgerCloseData const& ledgerData)
         {
         case LEDGER_UPGRADE_VERSION:
             ledgerDelta.getHeader().ledgerVersion = lupgrade.newLedgerVersion();
-            break;
-        case LEDGER_UPGRADE_BASE_FEE:
-            ledgerDelta.getHeader().baseFee = lupgrade.newBaseFee();
             break;
         case LEDGER_UPGRADE_MAX_TX_SET_SIZE:
             ledgerDelta.getHeader().maxTxSetSize = lupgrade.newMaxTxSetSize();

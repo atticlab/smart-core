@@ -93,7 +93,7 @@ CreateAccountOpFrame::doApply(Application& app,
 bool
 CreateAccountOpFrame::doCheckValid(Application& app)
 {
-    if (mCreateAccount.startingBalance <= 0)
+    if (mCreateAccount.startingBalance < 0)
     {
         app.getMetrics().NewMeter({"op-create-account", "invalid",
                           "malformed-negative-balance"},

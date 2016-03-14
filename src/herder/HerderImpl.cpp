@@ -305,15 +305,6 @@ HerderImpl::validateUpgradeStep(uint64 slotIndex, UpgradeType const& upgrade,
         res = (newVersion == mApp.getConfig().LEDGER_PROTOCOL_VERSION);
     }
     break;
-    case LEDGER_UPGRADE_BASE_FEE:
-    {
-        uint32 newFee = lupgrade.newBaseFee();
-        // allow fee to move within a 2x distance from the one we have in our
-        // config
-        res = (newFee >= mApp.getConfig().DESIRED_BASE_FEE * .5) &&
-              (newFee <= mApp.getConfig().DESIRED_BASE_FEE * 2);
-    }
-    break;
     case LEDGER_UPGRADE_MAX_TX_SET_SIZE:
     {
         // allow max to be within 30% of the config value
@@ -705,13 +696,6 @@ HerderImpl::combineCandidates(uint64 slotIndex,
                     {
                         clUpgrade.newLedgerVersion() =
                             lupgrade.newLedgerVersion();
-                    }
-                    break;
-                case LEDGER_UPGRADE_BASE_FEE:
-                    // take the max fee
-                    if (clUpgrade.newBaseFee() < lupgrade.newBaseFee())
-                    {
-                        clUpgrade.newBaseFee() = lupgrade.newBaseFee();
                     }
                     break;
                 case LEDGER_UPGRADE_MAX_TX_SET_SIZE:
@@ -1373,11 +1357,6 @@ HerderImpl::triggerNextLedger(uint32_t ledgerSeqToTrigger)
         upgrades.emplace_back(LEDGER_UPGRADE_VERSION);
         upgrades.back().newLedgerVersion() =
             mApp.getConfig().LEDGER_PROTOCOL_VERSION;
-    }
-    if (lcl.header.baseFee != mApp.getConfig().DESIRED_BASE_FEE)
-    {
-        upgrades.emplace_back(LEDGER_UPGRADE_BASE_FEE);
-        upgrades.back().newBaseFee() = mApp.getConfig().DESIRED_BASE_FEE;
     }
     if (lcl.header.maxTxSetSize != mApp.getConfig().DESIRED_MAX_TX_PER_LEDGER)
     {

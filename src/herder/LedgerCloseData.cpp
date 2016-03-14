@@ -47,9 +47,6 @@ stellarValueToString(StellarValue const& sv)
                 case LEDGER_UPGRADE_VERSION:
                     res << "VERSION=" << lupgrade.newLedgerVersion();
                     break;
-                case LEDGER_UPGRADE_BASE_FEE:
-                    res << "BASE_FEE=" << lupgrade.newBaseFee();
-                    break;
                 case LEDGER_UPGRADE_MAX_TX_SET_SIZE:
                     res << "MAX_TX_SET_SIZE=" << lupgrade.newMaxTxSetSize();
                     break;
