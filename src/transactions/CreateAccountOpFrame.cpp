@@ -69,8 +69,8 @@ CreateAccountOpFrame::doApply(Application& app,
             mSourceAccount->storeChange(delta, db);
 
             destAccount = make_shared<AccountFrame>(mCreateAccount.destination);
-            destAccount->getAccount().seqNum =
-                delta.getHeaderFrame().getStartingSequenceNumber();
+            destAccount->getAccount().seqNum = 0;
+//                delta.getHeaderFrame().getStartingSequenceNumber();
             destAccount->getAccount().balance = mCreateAccount.startingBalance;
 
             destAccount->storeAdd(delta, db);
