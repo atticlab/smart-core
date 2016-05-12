@@ -49,7 +49,7 @@ TEST_CASE("set options", "[tx][setoptions]")
     SECTION("Signers")
     {
         SecretKey s1 = getAccount("S1");
-        Signer sk1(s1.getPublicKey(), 1); // low right account
+        Signer sk1(s1.getPublicKey(), 1, SIGNER_GENERAL); // low right account
 
         ThresholdSetter th;
 
@@ -66,7 +66,7 @@ TEST_CASE("set options", "[tx][setoptions]")
 
         SECTION("can't use master key as alternate signer")
         {
-            Signer sk(a1.getPublicKey(), 100);
+            Signer sk(a1.getPublicKey(), 100, SIGNER_GENERAL);
             applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
                             nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER);
         }
@@ -92,7 +92,7 @@ TEST_CASE("set options", "[tx][setoptions]")
 
             // add signer 2
             SecretKey s2 = getAccount("S2");
-            Signer sk2(s2.getPublicKey(), 100);
+            Signer sk2(s2.getPublicKey(), 100, SIGNER_GENERAL);
             applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
                             nullptr, &sk2, nullptr);
 

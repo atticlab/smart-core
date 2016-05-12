@@ -132,7 +132,7 @@ TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight)
     vector<Signer> keyWeights;
     if (account.getAccount().thresholds[0])
         keyWeights.push_back(
-            Signer(account.getID(), account.getAccount().thresholds[0]));
+            Signer(account.getID(), account.getAccount().thresholds[0], SIGNER_GENERAL));
 
     keyWeights.insert(keyWeights.end(), account.getAccount().signers.begin(),
                       account.getAccount().signers.end());
@@ -165,6 +165,18 @@ TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight)
 
     return false;
 }
+
+    bool TransactionFrame::checkSignatureAgainst(const PublicKey publicKey){
+        Hash const& contentsHash = getContentsHash();
+        for (size_t i = 0; i < getEnvelope().signatures.size(); i++)
+        {
+            auto const& sig = getEnvelope().signatures[i];
+            if (PubKeyUtils::hasHint(publicKey, sig.hint) &&
+                PubKeyUtils::verifySig(publicKey, sig.signature,contentsHash))
+                return true;
+        }
+        return false;
+    }
 
 AccountFrame::pointer
 TransactionFrame::loadAccount(LedgerDelta* delta, Database& db,

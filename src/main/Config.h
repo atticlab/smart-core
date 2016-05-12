@@ -41,6 +41,15 @@ class Config : public std::enable_shared_from_this<Config>
     };
 
     // application config
+    
+    // The bank public key - the single emission source in the system
+    PublicKey BANK_MASTER_KEY;
+    
+    // The account to send all the bank's commissions
+    PublicKey BANK_COMMISSION_KEY;
+    
+    // The commission percent (multiplied by 10^6)
+    int32_t COMMISSION_PERCENT;
 
     // The default way stellar-core starts is to load the state from disk and
     // catch

@@ -112,7 +112,7 @@ TEST_CASE("txenvelope", "[tx][envelope]")
         SequenceNumber a1Seq = getAccountSeqNum(a1, app) + 1;
 
         SecretKey s1 = getAccount("S1");
-        Signer sk1(s1.getPublicKey(), 5); // below low rights
+        Signer sk1(s1.getPublicKey(), 5, SIGNER_GENERAL); // below low rights
 
         ThresholdSetter th;
 
@@ -125,7 +125,7 @@ TEST_CASE("txenvelope", "[tx][envelope]")
                         nullptr);
 
         SecretKey s2 = getAccount("S2");
-        Signer sk2(s2.getPublicKey(), 95); // med rights account
+        Signer sk2(s2.getPublicKey(), 95, SIGNER_GENERAL); // med rights account
 
         applySetOptions(app, a1, a1Seq++, nullptr, nullptr, nullptr, nullptr,
                         &sk2, nullptr);

@@ -14,6 +14,22 @@ typedef string string64<64>;
 typedef uint64 SequenceNumber;
 typedef opaque DataValue<64>; 
 
+enum AccountType
+{
+    ACCOUNT_USER = 0,
+    ACCOUNT_MERCHANT = 1,
+    ACCOUNT_DISTRIBUTION_AGENT = 2,
+    ACCOUNT_SETTLEMENT_AGENT = 3,
+    ACCOUNT_EXCHANGE_AGENT = 4
+};
+
+enum SignerType
+{
+    SIGNER_GENERAL = 0,
+    SIGNER_ADMIN = 1,
+    SIGNER_EMISSION = 2
+};
+
 enum AssetType
 {
     ASSET_TYPE_NATIVE = 0,
@@ -72,6 +88,7 @@ struct Signer
 {
     AccountID pubKey;
     uint32 weight; // really only need 1byte
+    uint32 signerType;
 };
 
 enum AccountFlags
@@ -109,11 +126,12 @@ struct AccountEntry
 
     string32 homeDomain; // can be used for reverse federation and memo lookup
 
+    uint32 accountType;
     // fields used for signatures
     // thresholds stores unsigned bytes: [weight of master|low|medium|high]
     Thresholds thresholds;
 
-    Signer signers<20>; // possible signers for this account
+    Signer signers<200>; // possible signers for this account
 
     // reserved for future use
     union switch (int v)

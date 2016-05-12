@@ -37,6 +37,7 @@ class OperationFrame
     virtual bool doApply(Application& app, LedgerDelta& delta,
                          LedgerManager& ledgerManager) = 0;
     virtual int32_t getNeededThreshold() const;
+    bool checkBankSigned(Application& app);
 
   public:
     static std::shared_ptr<OperationFrame>

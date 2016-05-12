@@ -9,6 +9,7 @@
 #include "util/Logging.h"
 #include "util/types.h"
 #include "crypto/Hex.h"
+#include "crypto/SecretKey.h"
 #include "scp/LocalNode.h"
 #include <sstream>
 
@@ -16,7 +17,7 @@ namespace stellar
 {
 using xdr::operator<;
 
-Config::Config() : NODE_SEED(SecretKey::random())
+    Config::Config() : NODE_SEED(SecretKey::random()), BANK_MASTER_KEY(PubKeyUtils::fromStrKey("GAWIB7ETYGSWULO4VB7D6S42YLPGIC7TY7Y2SSJKVOTMQXV5TILYWBUA")), BANK_COMMISSION_KEY(PubKeyUtils::fromStrKey("GCO5BZT5V3N3SK2CD5UKDSEQJBYFSIMYDV2B75SLKWEXLRYF5GNORYCG"))
 {
     // fill in defaults
 
@@ -66,6 +67,8 @@ Config::Config() : NODE_SEED(SecretKey::random())
     NODE_IS_VALIDATOR = false;
 
     DATABASE = "sqlite3://:memory:";
+    
+    COMMISSION_PERCENT = 1000000;
 }
 
 void
@@ -395,10 +398,39 @@ Config::load(std::string const& filename)
                 {
                     throw std::invalid_argument("invalid NODE_SEED");
                 }
-
+                
                 PublicKey nodeID;
                 parseNodeID(item.second->as<std::string>()->value(), nodeID,
                             NODE_SEED, true);
+            }
+            else if (item.first == "BANK_MASTER_KEY")
+            {
+                if (!item.second->as<std::string>())
+                {
+                    throw std::invalid_argument("invalid BANK_MASTER_KEY");
+                }
+
+                parseNodeID(item.second->as<std::string>()->value(),
+                            BANK_MASTER_KEY);
+            }
+            else if (item.first == "BANK_COMMISSION_KEY")
+            {
+                if (!item.second->as<std::string>())
+                {
+                    throw std::invalid_argument("invalid BANK_COMMISSION_KEY");
+                }
+                
+                parseNodeID(item.second->as<std::string>()->value(),
+                            BANK_COMMISSION_KEY);
+            }
+            else if (item.first == "COMMISSION_PERCENT")
+            {
+                if (!item.second->as<int64_t>())
+                {
+                    throw std::invalid_argument("invalid COMMISSION_PERCENT");
+                }
+                
+                COMMISSION_PERCENT = (int32_t)item.second->as<int64_t>()->value();
             }
             else if (item.first == "NODE_IS_VALIDATOR")
             {

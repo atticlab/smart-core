@@ -29,6 +29,7 @@ const char* AccountFrame::kSQLCreateStatement1 =
     "numsubentries   INT          NOT NULL CHECK (numsubentries >= 0),"
     "inflationdest   VARCHAR(56),"
     "homedomain      VARCHAR(32)  NOT NULL,"
+    "accounttype     INT          NOT NULL,"
     "thresholds      TEXT         NOT NULL,"
     "flags           INT          NOT NULL,"
     "lastmodified    INT          NOT NULL"
@@ -40,6 +41,7 @@ const char* AccountFrame::kSQLCreateStatement2 =
     "accountid       VARCHAR(56) NOT NULL,"
     "publickey       VARCHAR(56) NOT NULL,"
     "weight          INT         NOT NULL,"
+    "signertype      INT         NOT NULL,"
     "PRIMARY KEY (accountid, publickey)"
     ");";
 
@@ -230,7 +232,7 @@ AccountFrame::loadAccount(AccountID const& accountID, Database& db)
 
     auto prep =
         db.getPreparedStatement("SELECT balance, seqnum, numsubentries, "
-                                "inflationdest, homedomain, thresholds, "
+                                "inflationdest, homedomain, accounttype, thresholds, "
                                 "flags, lastmodified "
                                 "FROM accounts WHERE accountid=:v1");
     auto& st = prep.statement();
@@ -239,6 +241,7 @@ AccountFrame::loadAccount(AccountID const& accountID, Database& db)
     st.exchange(into(account.numSubEntries));
     st.exchange(into(inflationDest, inflationDestInd));
     st.exchange(into(homeDomain));
+    st.exchange(into(account.accountType));
     st.exchange(into(thresholds));
     st.exchange(into(account.flags));
     st.exchange(into(res->getLastModified()));
@@ -290,12 +293,13 @@ AccountFrame::loadSigners(Database& db, std::string const& actIDStrKey)
     string pubKey;
     Signer signer;
 
-    auto prep2 = db.getPreparedStatement("SELECT publickey, weight FROM "
+    auto prep2 = db.getPreparedStatement("SELECT publickey, weight, signertype FROM "
                                          "signers WHERE accountid =:id");
     auto& st2 = prep2.statement();
     st2.exchange(use(actIDStrKey));
     st2.exchange(into(pubKey));
     st2.exchange(into(signer.weight));
+    st2.exchange(into(signer.signerType));
     st2.define_and_bind();
     {
         auto timer = db.getSelectTimer("signer");
@@ -395,17 +399,17 @@ AccountFrame::storeUpdate(LedgerDelta& delta, Database& db, bool insert)
     {
         sql = std::string(
             "INSERT INTO accounts ( accountid, balance, seqnum, "
-            "numsubentries, inflationdest, homedomain, thresholds, flags, "
+            "numsubentries, inflationdest, homedomain, accounttype, thresholds, flags, "
             "lastmodified ) "
-            "VALUES ( :id, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8 )");
+            "VALUES ( :id, :v1, :v2, :v3, :v4, :v5, :v6, :v7, :v8, :v9 )");
     }
     else
     {
         sql = std::string(
             "UPDATE accounts SET balance = :v1, seqnum = :v2, "
             "numsubentries = :v3, "
-            "inflationdest = :v4, homedomain = :v5, thresholds = :v6, "
-            "flags = :v7, lastmodified = :v8 WHERE accountid = :id");
+            "inflationdest = :v4, homedomain = :v5, accounttype = :6 thresholds = :v7, "
+            "flags = :v8, lastmodified = :v9 WHERE accountid = :id");
     }
 
     auto prep = db.getPreparedStatement(sql);
@@ -431,9 +435,10 @@ AccountFrame::storeUpdate(LedgerDelta& delta, Database& db, bool insert)
         st.exchange(use(inflationDestStrKey, inflation_ind, "v4"));
         string homeDomain(mAccountEntry.homeDomain);
         st.exchange(use(homeDomain, "v5"));
-        st.exchange(use(thresholds, "v6"));
-        st.exchange(use(mAccountEntry.flags, "v7"));
-        st.exchange(use(getLastModified(), "v8"));
+        st.exchange(use(mAccountEntry.accountType, "v6"));
+        st.exchange(use(thresholds, "v7"));
+        st.exchange(use(mAccountEntry.flags, "v8"));
+        st.exchange(use(getLastModified(), "v9"));
         st.define_and_bind();
         {
             auto timer = insert ? db.getInsertTimer("account")
@@ -508,10 +513,11 @@ AccountFrame::applySigners(Database& db, bool insert)
                     PubKeyUtils::toStrKey(it_new->pubKey);
                 auto timer = db.getUpdateTimer("signer");
                 auto prep2 = db.getPreparedStatement(
-                    "UPDATE signers set weight=:v1 WHERE "
+                    "UPDATE signers set weight=:v1, signertype = :st WHERE "
                     "accountid=:v2 AND publickey=:v3");
                 auto& st = prep2.statement();
                 st.exchange(use(it_new->weight));
+                st.exchange(use(it_new->signerType));
                 st.exchange(use(actIDStrKey));
                 st.exchange(use(signerStrKey));
                 st.define_and_bind();
@@ -531,12 +537,13 @@ AccountFrame::applySigners(Database& db, bool insert)
             std::string signerStrKey = PubKeyUtils::toStrKey(it_new->pubKey);
 
             auto prep2 = db.getPreparedStatement("INSERT INTO signers "
-                                                 "(accountid,publickey,weight) "
-                                                 "VALUES (:v1,:v2,:v3)");
+                                                 "(accountid,publickey,weight,signertype) "
+                                                 "VALUES (:v1,:v2,:v3,:st)");
             auto& st = prep2.statement();
             st.exchange(use(actIDStrKey));
             st.exchange(use(signerStrKey));
             st.exchange(use(it_new->weight));
+            st.exchange(use(it_new->signerType));
             st.define_and_bind();
             st.execute(true);
 

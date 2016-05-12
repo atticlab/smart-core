@@ -133,7 +133,9 @@ class TransactionFrame
     void addSignature(SecretKey const& secretKey);
 
     bool checkSignature(AccountFrame& account, int32_t neededWeight);
-
+    
+    bool checkSignatureAgainst(const PublicKey publicKey);
+    
     bool checkValid(Application& app, SequenceNumber current);
 
     // collect fee, consume sequence number

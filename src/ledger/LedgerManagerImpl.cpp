@@ -158,10 +158,10 @@ LedgerManagerImpl::startNewLedger()
 {
     DBTimeExcluder qtExclude(mApp);
     auto ledgerTime = mLedgerClose.TimeScope();
-    SecretKey skey = SecretKey::fromSeed(mApp.getNetworkID());
 
-    AccountFrame masterAccount(skey.getPublicKey());
+    AccountFrame masterAccount(mApp.getConfig().BANK_MASTER_KEY);
     masterAccount.getAccount().balance = 0;
+    AccountFrame commissionAccount(mApp.getConfig().BANK_COMMISSION_KEY);
     LedgerHeader genesisHeader;
 
     // all fields are initialized by default to 0
@@ -174,11 +174,15 @@ LedgerManagerImpl::startNewLedger()
 
     LedgerDelta delta(genesisHeader, getDatabase());
     masterAccount.storeAdd(delta, this->getDatabase());
+    if (!(masterAccount.getID() == commissionAccount.getID())){
+        commissionAccount.storeAdd(delta, this->getDatabase());
+    }
     delta.commit();
 
     mCurrentLedger = make_shared<LedgerHeaderFrame>(genesisHeader);
     CLOG(INFO, "Ledger") << "Established genesis ledger, closing";
-    CLOG(INFO, "Ledger") << "Root account seed: " << skey.getStrKeySeed();
+    CLOG(INFO, "Ledger") << "Master account: " << PubKeyUtils::toStrKey(masterAccount.getID());
+    CLOG(INFO, "Ledger") << "Commision account: " << PubKeyUtils::toStrKey(commissionAccount.getID());
     closeLedgerHelper(delta);
 }
 

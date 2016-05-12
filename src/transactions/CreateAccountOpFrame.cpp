@@ -42,36 +42,9 @@ CreateAccountOpFrame::doApply(Application& app,
         AccountFrame::loadAccount(delta, mCreateAccount.destination, db);
     if (!destAccount)
     {
-        if (mCreateAccount.startingBalance < ledgerManager.getMinBalance(0))
-        { // not over the minBalance to make an account
-            app.getMetrics().NewMeter({"op-create-account", "failure", "low-reserve"},
-                             "operation").Mark();
-            innerResult().code(CREATE_ACCOUNT_LOW_RESERVE);
-            return false;
-        }
-        else
-        {
-            int64_t minBalance =
-                mSourceAccount->getMinimumBalance(ledgerManager);
-
-            if ((mSourceAccount->getAccount().balance - minBalance) <
-                mCreateAccount.startingBalance)
-            { // they don't have enough to send
-                app.getMetrics().NewMeter(
-                            {"op-create-account", "failure", "underfunded"},
-                            "operation").Mark();
-                innerResult().code(CREATE_ACCOUNT_UNDERFUNDED);
-                return false;
-            }
-
-            mSourceAccount->getAccount().balance -=
-                mCreateAccount.startingBalance;
-            mSourceAccount->storeChange(delta, db);
-
             destAccount = make_shared<AccountFrame>(mCreateAccount.destination);
             destAccount->getAccount().seqNum = 0;
 //                delta.getHeaderFrame().getStartingSequenceNumber();
-            destAccount->getAccount().balance = mCreateAccount.startingBalance;
 
             destAccount->storeAdd(delta, db);
 
@@ -79,7 +52,6 @@ CreateAccountOpFrame::doApply(Application& app,
                              "operation").Mark();
             innerResult().code(CREATE_ACCOUNT_SUCCESS);
             return true;
-        }
     }
     else
     {
@@ -89,19 +61,36 @@ CreateAccountOpFrame::doApply(Application& app,
         return false;
     }
 }
-
+    
 bool
 CreateAccountOpFrame::doCheckValid(Application& app)
 {
-    if (mCreateAccount.startingBalance < 0)
-    {
-        app.getMetrics().NewMeter({"op-create-account", "invalid",
-                          "malformed-negative-balance"},
-                         "operation").Mark();
-        innerResult().code(CREATE_ACCOUNT_MALFORMED);
-        return false;
+    switch (mCreateAccount.accountType) {
+        case ACCOUNT_USER:
+            break;
+        case ACCOUNT_MERCHANT:
+        case ACCOUNT_DISTRIBUTION_AGENT:
+        case ACCOUNT_SETTLEMENT_AGENT:
+        case ACCOUNT_EXCHANGE_AGENT:
+            if (getSourceID() == app.getConfig().BANK_MASTER_KEY){
+                break;
+            }
+            else{
+                app.getMetrics().NewMeter({"op-create-account", "invalid",
+                    "not-bank-creating-type"},
+                                          "operation").Mark();
+                innerResult().code(CREATE_ACCOUNT_NOT_AUTHORIZED_TYPE);
+                return false;
+            }
+            break;
+        default:
+            app.getMetrics().NewMeter({"op-create-account", "invalid",
+                "malformed-wrong-type"},
+                                      "operation").Mark();
+            innerResult().code(CREATE_ACCOUNT_WRONG_TYPE);
+            return false;
+            break;
     }
-
     if (mCreateAccount.destination == getSourceID())
     {
         app.getMetrics().NewMeter({"op-create-account", "invalid",

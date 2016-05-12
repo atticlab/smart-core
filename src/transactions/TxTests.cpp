@@ -379,7 +379,6 @@ createCreateAccountTx(Hash const& networkID, SecretKey& from, SecretKey& to,
 {
     Operation op;
     op.body.type(CREATE_ACCOUNT);
-    op.body.createAccountOp().startingBalance = amount;
     op.body.createAccountOp().destination = to.getPublicKey();
 
     return transactionFromOperation(networkID, from, seq, op);

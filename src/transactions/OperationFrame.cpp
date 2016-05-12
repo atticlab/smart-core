@@ -93,6 +93,10 @@ OperationFrame::getNeededThreshold() const
 {
     return mSourceAccount->getMediumThreshold();
 }
+    
+    bool OperationFrame::checkBankSigned(Application& app){
+        return mParentTx.checkSignatureAgainst(app.getConfig().BANK_MASTER_KEY);
+    }
 
 bool
 OperationFrame::checkSignature() const

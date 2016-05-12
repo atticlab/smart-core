@@ -933,7 +933,7 @@ LoadGenerator::TxInfo::toTransactionFrames(
             // Add a CREATE_ACCOUNT op
             Operation createOp;
             createOp.body.type(CREATE_ACCOUNT);
-            createOp.body.createAccountOp().startingBalance = mAmount;
+            createOp.body.createAccountOp().accountType = ACCOUNT_USER;
             createOp.body.createAccountOp().destination =
                 mTo->mKey.getPublicKey();
             e.tx.operations.push_back(createOp);

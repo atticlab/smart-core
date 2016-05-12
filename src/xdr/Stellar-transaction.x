@@ -40,7 +40,7 @@ Result: CreateAccountResult
 struct CreateAccountOp
 {
     AccountID destination; // account to create
-    int64 startingBalance; // amount they end up with
+    int64 accountType; // amount they end up with
 };
 
 /* Payment
@@ -358,7 +358,9 @@ enum CreateAccountResultCode
     CREATE_ACCOUNT_UNDERFUNDED = -2, // not enough funds in source account
     CREATE_ACCOUNT_LOW_RESERVE =
         -3, // would create an account below the min reserve
-    CREATE_ACCOUNT_ALREADY_EXIST = -4 // account already exists
+    CREATE_ACCOUNT_ALREADY_EXIST = -4, // account already exists
+    CREATE_ACCOUNT_NOT_AUTHORIZED_TYPE = -5,
+    CREATE_ACCOUNT_WRONG_TYPE = -6
 };
 
 union CreateAccountResult switch (CreateAccountResultCode code)
@@ -510,7 +512,8 @@ enum SetOptionsResultCode
     SET_OPTIONS_UNKNOWN_FLAG = -6,           // can't set an unknown flag
     SET_OPTIONS_THRESHOLD_OUT_OF_RANGE = -7, // bad value for weight/threshold
     SET_OPTIONS_BAD_SIGNER = -8,             // signer cannot be masterkey
-    SET_OPTIONS_INVALID_HOME_DOMAIN = -9     // malformed home domain
+    SET_OPTIONS_INVALID_HOME_DOMAIN = -9,     // malformed home domain
+    SET_OPTIONS_BAD_SIGNER_TYPE = -10        // only bank can add emission/admin signer
 };
 
 union SetOptionsResult switch (SetOptionsResultCode code)

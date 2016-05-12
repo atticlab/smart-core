@@ -265,6 +265,27 @@ SetOptionsOpFrame::doCheckValid(Application& app)
             innerResult().code(SET_OPTIONS_BAD_SIGNER);
             return false;
         }
+        switch(mSetOptions.signer->signerType)
+        {
+            case SIGNER_GENERAL:
+                break;
+            case SIGNER_EMISSION:
+            case SIGNER_ADMIN:
+                if (!(getSourceID() == app.getConfig().BANK_MASTER_KEY && checkBankSigned(app)))
+                {
+                    app.getMetrics().NewMeter({"op-set-options", "invalid", "bad-signer-type"},
+                                              "operation").Mark();
+                    innerResult().code(SET_OPTIONS_BAD_SIGNER_TYPE);
+                    return false;
+                }
+                break;
+            default:
+                app.getMetrics().NewMeter({"op-set-options", "invalid", "bad-signer-type"},
+                                          "operation").Mark();
+                innerResult().code(SET_OPTIONS_BAD_SIGNER_TYPE);
+                return false;
+        }
+        
     }
 
     if (mSetOptions.homeDomain)
