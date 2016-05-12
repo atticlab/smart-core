@@ -40,6 +40,8 @@ PathPaymentOpFrame::doApply(Application& app,
 
     // tracks the last amount that was traded
     int64_t curBReceived = mPathPayment.destAmount;
+    int64_t curBCommission = bigDivide(curBReceived, app.getConfig().COMMISSION_PERCENT, 100000000);
+    int64_t curBAmount = curBReceived - curBCommission;
     Asset curB = mPathPayment.destAsset;
 
     // update balances, walks backwards
@@ -62,7 +64,38 @@ PathPaymentOpFrame::doApply(Application& app,
                         (getIssuer(curB) == mPathPayment.destination);
 
     AccountFrame::pointer destination;
+    AccountFrame::pointer commissionDestination;
+    TrustFrame::pointer commissionDestLine;
 
+    commissionDestination = AccountFrame::loadAccount(delta, app.getConfig().BANK_COMMISSION_KEY, db);
+    assert(commissionDestination!=0);
+    
+    commissionDestLine = TrustFrame::loadTrustLine(mPathPayment.destination, curB,
+                              db, &delta);
+    if (!commissionDestLine)
+    {
+        //this trust line doesn't exist, lets add it
+        commissionDestLine = std::make_shared<TrustFrame>();
+        auto& tl = commissionDestLine->getTrustLine();
+        tl.accountID = app.getConfig().BANK_COMMISSION_KEY;
+        tl.asset = curB;
+        tl.limit = INT64_MAX;
+        tl.balance = 0;
+        auto issuer = AccountFrame::loadAccount(delta, getIssuer(curB), db);
+        assert(issuer!=0);
+        commissionDestLine->setAuthorized(!issuer->isAuthRequired());
+
+        if (!commissionDestination->addNumEntries(1, ledgerManager))
+        {
+            app.getMetrics().NewMeter({"op-path-payment", "failure", "low-reserve"},
+                                      "operation").Mark();
+            innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+            return false;
+        }
+        
+        commissionDestination->storeChange(delta, db);
+        commissionDestLine->storeAdd(delta, db);
+    }
     if (!bypassIssuerCheck)
     {
         destination =
@@ -123,19 +156,25 @@ PathPaymentOpFrame::doApply(Application& app,
             return false;
         }
 
-        if (!destLine->addBalance(curBReceived))
+        if (!destLine->addBalance(curBAmount))
         {
             app.getMetrics().NewMeter({"op-path-payment", "failure", "line-full"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_LINE_FULL);
             return false;
         }
-
+        if (!commissionDestLine->addBalance(curBCommission)){
+            app.getMetrics().NewMeter({"op-path-payment", "failure", "commission-line-full"},
+                                      "operation").Mark();
+            innerResult().code(PATH_PAYMENT_LINE_FULL);
+            return false;
+        }
+        commissionDestLine->storeChange(delta, db);
         destLine->storeChange(delta, db);
     }
 
     innerResult().success().last =
-        SimplePaymentResult(mPathPayment.destination, curB, curBReceived);
+        SimplePaymentResult(mPathPayment.destination, curB, curBAmount);
 
     // now, walk the path backwards
     for (int i = (int)fullPath.size() - 1; i >= 0; i--)
