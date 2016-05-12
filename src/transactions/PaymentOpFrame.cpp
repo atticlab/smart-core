@@ -127,6 +127,20 @@ PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
     return true;
 }
 
+bool isBankIssuer(Application&app, Asset const& asset){
+    switch (asset.type()) {
+        case ASSET_TYPE_CREDIT_ALPHANUM12:
+            return asset.alphaNum12().issuer == app.getConfig().BANK_MASTER_KEY;
+            break;
+        case ASSET_TYPE_CREDIT_ALPHANUM4:
+            return asset.alphaNum4().issuer == app.getConfig().BANK_MASTER_KEY;
+            break;
+        default:
+            return false;
+            break;
+    }
+}
+
 bool
 PaymentOpFrame::doCheckValid(Application& app)
 {
@@ -137,7 +151,7 @@ PaymentOpFrame::doCheckValid(Application& app)
         innerResult().code(PAYMENT_MALFORMED);
         return false;
     }
-    if (!isAssetValid(mPayment.asset))
+    if (!isAssetValid(mPayment.asset) || !isBankIssuer(app, mPayment.asset))
     {
         app.getMetrics().NewMeter({"op-payment", "invalid", "malformed-invalid-asset"},
                          "operation").Mark();
@@ -146,4 +160,5 @@ PaymentOpFrame::doCheckValid(Application& app)
     }
     return true;
 }
+    
 }
