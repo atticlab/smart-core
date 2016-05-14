@@ -408,7 +408,7 @@ AccountFrame::storeUpdate(LedgerDelta& delta, Database& db, bool insert)
         sql = std::string(
             "UPDATE accounts SET balance = :v1, seqnum = :v2, "
             "numsubentries = :v3, "
-            "inflationdest = :v4, homedomain = :v5, accounttype = :6 thresholds = :v7, "
+            "inflationdest = :v4, homedomain = :v5, accounttype = :v6, thresholds = :v7, "
             "flags = :v8, lastmodified = :v9 WHERE accountid = :id");
     }
 
@@ -513,8 +513,8 @@ AccountFrame::applySigners(Database& db, bool insert)
                     PubKeyUtils::toStrKey(it_new->pubKey);
                 auto timer = db.getUpdateTimer("signer");
                 auto prep2 = db.getPreparedStatement(
-                    "UPDATE signers set weight=:v1, signertype = :st WHERE "
-                    "accountid=:v2 AND publickey=:v3");
+                    "UPDATE signers set weight=:v1, signertype = :v2 WHERE "
+                    "accountid=:v3 AND publickey=:v4");
                 auto& st = prep2.statement();
                 st.exchange(use(it_new->weight));
                 st.exchange(use(it_new->signerType));
@@ -538,7 +538,7 @@ AccountFrame::applySigners(Database& db, bool insert)
 
             auto prep2 = db.getPreparedStatement("INSERT INTO signers "
                                                  "(accountid,publickey,weight,signertype) "
-                                                 "VALUES (:v1,:v2,:v3,:st)");
+                                                 "VALUES (:v1,:v2,:v3,:v4)");
             auto& st = prep2.statement();
             st.exchange(use(actIDStrKey));
             st.exchange(use(signerStrKey));

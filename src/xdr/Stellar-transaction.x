@@ -40,7 +40,7 @@ Result: CreateAccountResult
 struct CreateAccountOp
 {
     AccountID destination; // account to create
-    int64 accountType; // amount they end up with
+    uint32 accountType; // amount they end up with
 };
 
 /* Payment

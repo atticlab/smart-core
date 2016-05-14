@@ -70,7 +70,7 @@ PathPaymentOpFrame::doApply(Application& app,
     commissionDestination = AccountFrame::loadAccount(delta, app.getConfig().BANK_COMMISSION_KEY, db);
     assert(commissionDestination!=0);
     
-    commissionDestLine = TrustFrame::loadTrustLine(mPathPayment.destination, curB,
+    commissionDestLine = TrustFrame::loadTrustLine(app.getConfig().BANK_COMMISSION_KEY, curB,
                               db, &delta);
     if (!commissionDestLine)
     {
