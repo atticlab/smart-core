@@ -35,7 +35,7 @@ class ManageOfferOpFrame : public OperationFrame
     bool mPassive;
 
   public:
-    ManageOfferOpFrame(Operation const& op, OperationResult& res,
+    ManageOfferOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                        TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,

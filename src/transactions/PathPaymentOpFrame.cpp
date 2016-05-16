@@ -24,8 +24,9 @@ using xdr::operator==;
 
 PathPaymentOpFrame::PathPaymentOpFrame(Operation const& op,
                                        OperationResult& res,
+                                       OperationFee& fee,
                                        TransactionFrame& parentTx)
-    : OperationFrame(op, res, parentTx)
+    : OperationFrame(op, res, fee, parentTx)
     , mPathPayment(mOperation.body.pathPaymentOp())
 {
 }
@@ -37,7 +38,7 @@ PathPaymentOpFrame::doApply(Application& app,
     Database& db = ledgerManager.getDatabase();
 
     innerResult().code(PATH_PAYMENT_SUCCESS);
-
+    mFee.type(opFEE_NONE);
     // tracks the last amount that was traded
     int64_t curBReceived = mPathPayment.destAmount;
     int64_t curBCommission = bigDivide(curBReceived, app.getConfig().COMMISSION_PERCENT, 100000000);
@@ -169,6 +170,9 @@ PathPaymentOpFrame::doApply(Application& app,
             innerResult().code(PATH_PAYMENT_LINE_FULL);
             return false;
         }
+        mFee.type(opFEE_CHARGED);
+        mFee.fee().asset = curB;
+        mFee.fee().amount = curBCommission;
         commissionDestLine->storeChange(delta, db);
         destLine->storeChange(delta, db);
     }
@@ -195,6 +199,7 @@ PathPaymentOpFrame::doApply(Application& app,
                                  "operation").Mark();
                 innerResult().code(PATH_PAYMENT_NO_ISSUER);
                 innerResult().noIssuer() = curA;
+                mFee.type(opFEE_NONE);
                 return false;
             }
         }
@@ -222,6 +227,7 @@ PathPaymentOpFrame::doApply(Application& app,
         switch (r)
         {
         case OfferExchange::eFilterStop:
+            mFee.type(opFEE_NONE);
             return false;
         case OfferExchange::eOK:
             if (curBReceived == actualCurBReceived)
@@ -233,6 +239,7 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "too-few-offers"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_TOO_FEW_OFFERS);
+            mFee.type(opFEE_NONE);
             return false;
         }
         assert(curBReceived == actualCurBReceived);
@@ -258,6 +265,7 @@ PathPaymentOpFrame::doApply(Application& app,
         app.getMetrics().NewMeter({"op-path-payment", "failure", "over-send-max"},
                          "operation").Mark();
         innerResult().code(PATH_PAYMENT_OVER_SENDMAX);
+        mFee.type(opFEE_NONE);
         return false;
     }
 
@@ -270,6 +278,7 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "underfunded"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_UNDERFUNDED);
+            mFee.type(opFEE_NONE);
             return false;
         }
 
@@ -295,6 +304,7 @@ PathPaymentOpFrame::doApply(Application& app,
                                  "operation").Mark();
                 innerResult().code(PATH_PAYMENT_NO_ISSUER);
                 innerResult().noIssuer() = curB;
+                mFee.type(opFEE_NONE);
                 return false;
             }
             sourceLineFrame = tlI.first;
@@ -305,6 +315,7 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "src-no-trust"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_SRC_NO_TRUST);
+            mFee.type(opFEE_NONE);
             return false;
         }
 
@@ -314,6 +325,7 @@ PathPaymentOpFrame::doApply(Application& app,
                         {"op-path-payment", "failure", "src-not-authorized"},
                         "operation").Mark();
             innerResult().code(PATH_PAYMENT_SRC_NOT_AUTHORIZED);
+            mFee.type(opFEE_NONE);
             return false;
         }
 
@@ -322,6 +334,7 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "underfunded"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_UNDERFUNDED);
+            mFee.type(opFEE_NONE);
             return false;
         }
 

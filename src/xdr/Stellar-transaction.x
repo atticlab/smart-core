@@ -677,6 +677,24 @@ default:
     void;
 };
 
+enum OperationFeeType
+{
+    opFEE_NONE = 0,
+    opFEE_CHARGED = 1
+};
+
+union OperationFee switch (OperationFeeType type)
+{
+case opFEE_NONE:
+    void;
+case opFEE_CHARGED:
+    struct
+    {
+        Asset asset;
+        int64 amount;
+    } fee;
+};
+
 enum TransactionResultCode
 {
     txSUCCESS = 0, // all operations succeeded
@@ -698,8 +716,7 @@ enum TransactionResultCode
 
 struct TransactionResult
 {
-    int64 feeCharged; // actual fee charged for the transaction
-
+    OperationFee fees<>; // actual fees charged for the transaction
     union switch (TransactionResultCode code)
     {
     case txSUCCESS:

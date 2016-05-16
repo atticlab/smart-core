@@ -22,9 +22,9 @@ namespace stellar
 using namespace std;
 using xdr::operator==;
 
-PaymentOpFrame::PaymentOpFrame(Operation const& op, OperationResult& res,
+PaymentOpFrame::PaymentOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                                TransactionFrame& parentTx)
-    : OperationFrame(op, res, parentTx), mPayment(mOperation.body.paymentOp())
+    : OperationFrame(op, res, fee, parentTx), mPayment(mOperation.body.paymentOp())
 {
 }
 
@@ -32,6 +32,7 @@ bool
 PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
                         LedgerManager& ledgerManager)
 {
+    mFee.type(opFEE_NONE);
     // if sending to self directly, just mark as success
     if (mPayment.destination == getSourceID())
     {
@@ -57,7 +58,7 @@ PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
     OperationResult opRes;
     opRes.code(opINNER);
     opRes.tr().type(PATH_PAYMENT);
-    PathPaymentOpFrame ppayment(op, opRes, mParentTx);
+    PathPaymentOpFrame ppayment(op, opRes, mFee, mParentTx);
     ppayment.setSourceAccountPtr(mSourceAccount);
 
     if (!ppayment.doCheckValid(app) ||
@@ -115,6 +116,7 @@ PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
             throw std::runtime_error("Unexpected error code from pathPayment");
         }
         innerResult().code(res);
+        mFee.type(opFEE_NONE);
         return false;
     }
 

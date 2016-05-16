@@ -12,9 +12,9 @@
 
 namespace stellar
 {
-AllowTrustOpFrame::AllowTrustOpFrame(Operation const& op, OperationResult& res,
+AllowTrustOpFrame::AllowTrustOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                                      TransactionFrame& parentTx)
-    : OperationFrame(op, res, parentTx)
+    : OperationFrame(op, res, fee, parentTx)
     , mAllowTrust(mOperation.body.allowTrustOp())
 {
 }
@@ -29,6 +29,7 @@ bool
 AllowTrustOpFrame::doApply(Application& app, LedgerDelta& delta,
                            LedgerManager& ledgerManager)
 {
+    mFee.type(opFEE_NONE);
     if (!(mSourceAccount->getAccount().flags & AUTH_REQUIRED_FLAG))
     { // this account doesn't require authorization to hold credit
         app.getMetrics().NewMeter({"op-allow-trust", "failure", "not-required"},

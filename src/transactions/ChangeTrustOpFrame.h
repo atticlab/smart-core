@@ -18,7 +18,7 @@ class ChangeTrustOpFrame : public OperationFrame
     ChangeTrustOp const& mChangeTrust;
 
   public:
-    ChangeTrustOpFrame(Operation const& op, OperationResult& res,
+    ChangeTrustOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                        TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,

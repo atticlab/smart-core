@@ -32,35 +32,33 @@ namespace stellar
 using namespace std;
 
 shared_ptr<OperationFrame>
-OperationFrame::makeHelper(Operation const& op, OperationResult& res,
+OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationFee& fee,
                            TransactionFrame& tx)
 {
     switch (op.body.type())
     {
     case CREATE_ACCOUNT:
-        return shared_ptr<OperationFrame>(
-            new CreateAccountOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new CreateAccountOpFrame(op, res, fee, tx));
     case PAYMENT:
-        return shared_ptr<OperationFrame>(new PaymentOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new PaymentOpFrame(op, res, fee, tx));
     case PATH_PAYMENT:
-        return shared_ptr<OperationFrame>(new PathPaymentOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new PathPaymentOpFrame(op, res, fee, tx));
     case MANAGE_OFFER:
-        return shared_ptr<OperationFrame>(new ManageOfferOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new ManageOfferOpFrame(op, res, fee, tx));
     case CREATE_PASSIVE_OFFER:
-        return shared_ptr<OperationFrame>(
-            new CreatePassiveOfferOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new CreatePassiveOfferOpFrame(op, res, fee, tx));
     case SET_OPTIONS:
-        return shared_ptr<OperationFrame>(new SetOptionsOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new SetOptionsOpFrame(op, res, fee, tx));
     case CHANGE_TRUST:
-        return shared_ptr<OperationFrame>(new ChangeTrustOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new ChangeTrustOpFrame(op, res, fee, tx));
     case ALLOW_TRUST:
-        return shared_ptr<OperationFrame>(new AllowTrustOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new AllowTrustOpFrame(op, res, fee, tx));
     case ACCOUNT_MERGE:
-        return shared_ptr<OperationFrame>(new MergeOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new MergeOpFrame(op, res, fee, tx));
     case INFLATION:
-        return shared_ptr<OperationFrame>(new InflationOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new InflationOpFrame(op, res, fee, tx));
     case MANAGE_DATA:
-        return shared_ptr<OperationFrame>(new ManageDataOpFrame(op, res, tx));
+        return shared_ptr<OperationFrame>(new ManageDataOpFrame(op, res, fee, tx));
 
     default:
         ostringstream err;
@@ -69,9 +67,9 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res,
     }
 }
 
-OperationFrame::OperationFrame(Operation const& op, OperationResult& res,
+OperationFrame::OperationFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                                TransactionFrame& parentTx)
-    : mOperation(op), mParentTx(parentTx), mResult(res)
+    : mOperation(op), mParentTx(parentTx), mResult(res), mFee(fee)
 {
 }
 

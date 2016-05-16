@@ -19,7 +19,7 @@ class PathPaymentOpFrame : public OperationFrame
     PathPaymentOp const& mPathPayment;
 
   public:
-    PathPaymentOpFrame(Operation const& op, OperationResult& res,
+    PathPaymentOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                        TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,

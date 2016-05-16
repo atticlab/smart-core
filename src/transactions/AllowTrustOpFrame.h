@@ -20,7 +20,7 @@ class AllowTrustOpFrame : public OperationFrame
     AllowTrustOp const& mAllowTrust;
 
   public:
-    AllowTrustOpFrame(Operation const& op, OperationResult& res,
+    AllowTrustOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                       TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,

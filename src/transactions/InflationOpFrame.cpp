@@ -21,9 +21,9 @@ const time_t INFLATION_START_TIME = (1404172800LL); // 1-jul-2014 (unix epoch)
 
 namespace stellar
 {
-InflationOpFrame::InflationOpFrame(Operation const& op, OperationResult& res,
+InflationOpFrame::InflationOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                                    TransactionFrame& parentTx)
-    : OperationFrame(op, res, parentTx)
+    : OperationFrame(op, res, fee, parentTx)
 {
 }
 
@@ -32,7 +32,7 @@ InflationOpFrame::doApply(Application& app, LedgerDelta& delta,
                           LedgerManager& ledgerManager)
 {
     LedgerDelta inflationDelta(delta);
-
+    mFee.type(opFEE_NONE);
     auto& lcl = inflationDelta.getHeader();
 
     time_t closeTime = lcl.scpValue.closeTime;

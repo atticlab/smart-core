@@ -30,6 +30,7 @@ class OperationFrame
     TransactionFrame& mParentTx;
     AccountFrame::pointer mSourceAccount;
     OperationResult& mResult;
+    OperationFee& mFee;
 
     bool checkSignature() const;
 
@@ -41,10 +42,10 @@ class OperationFrame
 
   public:
     static std::shared_ptr<OperationFrame>
-    makeHelper(Operation const& op, OperationResult& res,
+    makeHelper(Operation const& op, OperationResult& res, OperationFee& fee,
                TransactionFrame& parentTx);
 
-    OperationFrame(Operation const& op, OperationResult& res,
+    OperationFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                    TransactionFrame& parentTx);
     OperationFrame(OperationFrame const&) = delete;
 

@@ -17,9 +17,9 @@ static const uint32 allAccountFlags =
 static const uint32 allAccountAuthFlags =
     (AUTH_REQUIRED_FLAG | AUTH_REVOCABLE_FLAG | AUTH_IMMUTABLE_FLAG);
 
-SetOptionsOpFrame::SetOptionsOpFrame(Operation const& op, OperationResult& res,
+SetOptionsOpFrame::SetOptionsOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
                                      TransactionFrame& parentTx)
-    : OperationFrame(op, res, parentTx)
+    : OperationFrame(op, res, fee, parentTx)
     , mSetOptions(mOperation.body.setOptionsOp())
 {
 }
@@ -43,7 +43,7 @@ SetOptionsOpFrame::doApply(Application& app, LedgerDelta& delta,
 {
     Database& db = ledgerManager.getDatabase();
     AccountEntry& account = mSourceAccount->getAccount();
-
+    mFee.type(opFEE_NONE);
     if (mSetOptions.inflationDest)
     {
         AccountFrame::pointer inflationAccount;

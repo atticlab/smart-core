@@ -211,22 +211,24 @@ TransactionFrame::resetResults()
 {
     // pre-allocates the results for all operations
     getResult().result.code(txSUCCESS);
+    getResult().fees.resize(
+        (uint32_t)mEnvelope.tx.operations.size());
     getResult().result.results().resize(
         (uint32_t)mEnvelope.tx.operations.size());
 
     mOperations.clear();
 
-    // bind operations to the results
+    // bind operations to the results and to fees
     for (size_t i = 0; i < mEnvelope.tx.operations.size(); i++)
     {
         mOperations.push_back(
             OperationFrame::makeHelper(mEnvelope.tx.operations[i],
-                                       getResult().result.results()[i], *this));
+                                       getResult().result.results()[i], getResult().fees[i], *this));
     }
 
     // feeCharged is updated accordingly to represent the cost of the
     // transaction regardless of the failure modes.
-    getResult().feeCharged = getFee();
+//    getResult().feeCharged = getFee();
 }
 
 bool
@@ -343,19 +345,19 @@ TransactionFrame::processFeeSeqNum(LedgerDelta& delta,
     }
 
     Database& db = ledgerManager.getDatabase();
-    int64_t& fee = getResult().feeCharged;
-
-    if (fee > 0)
-    {
-        int64_t avail = mSigningAccount->getAccount().balance;
-        if (avail < fee)
-        {
-            // take all their balance to be safe
-            fee = avail;
-        }
-        mSigningAccount->getAccount().balance -= fee;
-        delta.getHeader().feePool += fee;
-    }
+//    int64_t& fee = getResult().feeCharged;
+//
+//    if (fee > 0)
+//    {
+//        int64_t avail = mSigningAccount->getAccount().balance;
+//        if (avail < fee)
+//        {
+//            // take all their balance to be safe
+//            fee = avail;
+//        }
+//        mSigningAccount->getAccount().balance -= fee;
+//        delta.getHeader().feePool += fee;
+//    }
     if (mSigningAccount->getSeqNum() + 1 != mEnvelope.tx.seqNum)
     {
         // this should not happen as the transaction set is sanitized for
