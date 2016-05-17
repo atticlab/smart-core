@@ -68,8 +68,9 @@ bool
 CreateAccountOpFrame::doCheckValid(Application& app)
 {
     switch (mCreateAccount.accountType) {
-        case ACCOUNT_USER:
+        case ACCOUNT_ANONYMOUS_USER:
             break;
+        case ACCOUNT_REGISTERED_USER:
         case ACCOUNT_MERCHANT:
         case ACCOUNT_DISTRIBUTION_AGENT:
         case ACCOUNT_SETTLEMENT_AGENT:

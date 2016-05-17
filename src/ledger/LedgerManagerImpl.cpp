@@ -161,6 +161,7 @@ LedgerManagerImpl::startNewLedger()
 
     AccountFrame masterAccount(mApp.getConfig().BANK_MASTER_KEY);
     masterAccount.getAccount().balance = 0;
+    masterAccount.getAccount().accountType = ACCOUNT_BANK;
     AccountFrame commissionAccount(mApp.getConfig().BANK_COMMISSION_KEY);
     LedgerHeader genesisHeader;
 
@@ -175,6 +176,7 @@ LedgerManagerImpl::startNewLedger()
     LedgerDelta delta(genesisHeader, getDatabase());
     masterAccount.storeAdd(delta, this->getDatabase());
     if (!(masterAccount.getID() == commissionAccount.getID())){
+        commissionAccount.getAccount().accountType = ACCOUNT_BANK;
         commissionAccount.storeAdd(delta, this->getDatabase());
     }
     delta.commit();
