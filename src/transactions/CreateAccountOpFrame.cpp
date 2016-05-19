@@ -44,16 +44,17 @@ CreateAccountOpFrame::doApply(Application& app,
         AccountFrame::loadAccount(delta, mCreateAccount.destination, db);
     if (!destAccount)
     {
-            destAccount = make_shared<AccountFrame>(mCreateAccount.destination);
-            destAccount->getAccount().seqNum = 0;
-//                delta.getHeaderFrame().getStartingSequenceNumber();
-
-            destAccount->storeAdd(delta, db);
-
-            app.getMetrics().NewMeter({"op-create-account", "success", "apply"},
-                             "operation").Mark();
-            innerResult().code(CREATE_ACCOUNT_SUCCESS);
-            return true;
+        destAccount = make_shared<AccountFrame>(mCreateAccount.destination);
+        destAccount->getAccount().seqNum = 0;
+        destAccount->getAccount().accountType  = mCreateAccount.accountType;
+        //                delta.getHeaderFrame().getStartingSequenceNumber();
+        
+        destAccount->storeAdd(delta, db);
+        
+        app.getMetrics().NewMeter({"op-create-account", "success", "apply"},
+                                  "operation").Mark();
+        innerResult().code(CREATE_ACCOUNT_SUCCESS);
+        return true;
     }
     else
     {
