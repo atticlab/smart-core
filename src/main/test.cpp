@@ -10,6 +10,7 @@
 #include <time.h>
 #include "util/Logging.h"
 #include "util/TmpDir.h"
+#include "crypto/SHA.h"
 
 #ifdef _WIN32
 #include <process.h>
@@ -94,6 +95,9 @@ getTestConfig(int instanceNumber, Config::TestDbMode mode)
         thisConfig.UNSAFE_QUORUM = true;
 
         thisConfig.NETWORK_PASSPHRASE = "(V) (;,,;) (V)";
+
+		auto root = SecretKey::fromSeed(sha256(thisConfig.NETWORK_PASSPHRASE));
+		thisConfig.BANK_MASTER_KEY = root.getPublicKey();
 
         std::ostringstream dbname;
         switch (mode)
