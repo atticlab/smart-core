@@ -310,7 +310,7 @@ transactionFromOperation(Hash const& networkID, SecretKey& from,
     TransactionEnvelope e;
 
     e.tx.sourceAccount = from.getPublicKey();
-    e.tx.fee = 100;
+    e.tx.fee = 0;
     e.tx.seqNum = seq;
     e.tx.operations.push_back(op);
 
