@@ -24,6 +24,8 @@ uint256 makePublicKey(uint256 const& b);
 // returns true if the passed string32 is valid
 bool isString32Valid(std::string const& str);
 
+// returns true if the Asset value is well formed and issued by bankID
+bool isAssetValid(AccountID const& bankID, Asset const& cur);
 // returns true if the Asset value is well formed
 bool isAssetValid(Asset const& cur);
 

@@ -375,7 +375,7 @@ ManageOfferOpFrame::doCheckValid(Application& app)
     Asset const& sheep = mManageOffer.selling;
     Asset const& wheat = mManageOffer.buying;
 
-    if (!isAssetValid(sheep) || !isAssetValid(wheat))
+    if (!isAssetValid(app.getIssuer(), sheep) || !isAssetValid(app.getIssuer(), wheat))
     {
         app.getMetrics().NewMeter({"op-manage-offer", "invalid", "invalid-asset"},
                          "operation").Mark();

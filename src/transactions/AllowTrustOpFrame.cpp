@@ -107,7 +107,7 @@ AllowTrustOpFrame::doCheckValid(Application& app)
         ci.alphaNum12().issuer = getSourceID();
     }
 
-    if (!isAssetValid(ci))
+    if (!isAssetValid(app.getIssuer(), ci))
     {
         app.getMetrics().NewMeter(
                     {"op-allow-trust", "invalid", "malformed-invalid-asset"},

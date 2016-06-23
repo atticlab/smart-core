@@ -95,6 +95,8 @@ class ApplicationImpl : public Application
 
     virtual Hash const& getNetworkID() const override;
 
+	virtual AccountID const& getIssuer() const override;
+
   private:
     VirtualClock& mVirtualClock;
     Config mConfig;

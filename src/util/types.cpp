@@ -134,6 +134,10 @@ isAssetValid(Asset const& cur)
     return false;
 }
 
+bool isAssetValid(AccountID const& bankID, Asset const& cur) {
+	return isAssetValid(cur) && (cur.type() == ASSET_TYPE_NATIVE || getIssuer(cur) == bankID);
+}
+
 AccountID
 getIssuer(Asset const& asset)
 {

@@ -192,6 +192,12 @@ ApplicationImpl::getNetworkID() const
     return mNetworkID;
 }
 
+AccountID const&
+ApplicationImpl::getIssuer() const
+{
+	return mConfig.BANK_MASTER_KEY;
+}
+
 ApplicationImpl::~ApplicationImpl()
 {
     LOG(INFO) << "Application destructing";

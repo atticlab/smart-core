@@ -357,8 +357,10 @@ PathPaymentOpFrame::doCheckValid(Application& app)
         innerResult().code(PATH_PAYMENT_MALFORMED);
         return false;
     }
-    if (!isAssetValid(mPathPayment.sendAsset) ||
-        !isAssetValid(mPathPayment.destAsset))
+
+	auto const& issuer = app.getIssuer();
+    if (!isAssetValid(issuer, mPathPayment.sendAsset) ||
+        !isAssetValid(issuer, mPathPayment.destAsset))
     {
         app.getMetrics().NewMeter({"op-path-payment", "invalid", "malformed-currencies"},
                          "operation").Mark();
@@ -366,7 +368,7 @@ PathPaymentOpFrame::doCheckValid(Application& app)
         return false;
     }
     auto const& p = mPathPayment.path;
-    if (!std::all_of(p.begin(), p.end(), isAssetValid))
+	if (!std::all_of(p.begin(), p.end(), [issuer](Asset asset) {return isAssetValid(issuer, asset);}))
     {
         app.getMetrics().NewMeter({"op-path-payment", "invalid", "malformed-currencies"},
                          "operation").Mark();

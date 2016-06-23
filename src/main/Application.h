@@ -243,6 +243,8 @@ class Application
     // instances
     virtual Hash const& getNetworkID() const = 0;
 
+	virtual PublicKey const& getIssuer() const = 0;
+
     virtual void newDB() = 0;
 
     // Factory: create a new Application object bound to `clock`, with a local
