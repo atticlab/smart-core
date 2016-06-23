@@ -19,7 +19,7 @@ class CreateAccountOpFrame : public OperationFrame
     CreateAccountOp const& mCreateAccount;
 
   public:
-    CreateAccountOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+    CreateAccountOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                          TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,

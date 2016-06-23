@@ -5,6 +5,7 @@
 // of this distribution or at http://www.apache.org/licenses/LICENSE-2.0
 
 #include "transactions/OperationFrame.h"
+#include "ledger/TrustFrame.h"
 
 namespace stellar
 {
@@ -18,8 +19,11 @@ class PathPaymentOpFrame : public OperationFrame
     }
     PathPaymentOp const& mPathPayment;
 
+	TrustFrame::pointer getCommissionDest(LedgerManager const& ledgerManager, LedgerDelta& delta, Database& db,
+		AccountFrame::pointer commissionDest, Asset& asset);
+
   public:
-    PathPaymentOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+    PathPaymentOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                        TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,
@@ -31,5 +35,6 @@ class PathPaymentOpFrame : public OperationFrame
     {
         return res.tr().pathPaymentResult().code();
     }
+
 };
 }

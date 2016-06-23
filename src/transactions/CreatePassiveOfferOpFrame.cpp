@@ -23,7 +23,7 @@ ManageOfferOpHolder::ManageOfferOpHolder(Operation const& op)
 
 CreatePassiveOfferOpFrame::CreatePassiveOfferOpFrame(Operation const& op,
                                                      OperationResult& res,
-                                                     OperationFee& fee,
+                                                     OperationFee* fee,
                                                      TransactionFrame& parentTx)
     : ManageOfferOpHolder(op), ManageOfferOpFrame(mCreateOp, res, fee, parentTx)
 {

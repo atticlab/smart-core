@@ -21,7 +21,7 @@ using xdr::operator==;
 
 ManageDataOpFrame::ManageDataOpFrame(Operation const& op,
     OperationResult& res,
-    OperationFee& fee,
+    OperationFee* fee,
     TransactionFrame& parentTx)
     : OperationFrame(op, res, fee, parentTx)
     , mManageData(mOperation.body.manageDataOp())
@@ -35,7 +35,6 @@ ManageDataOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
 {
     Database& db = ledgerManager.getDatabase();
-    mFee.type(opFEE_NONE);
     auto dataFrame = DataFrame::loadData(mSourceAccount->getID(), mManageData.dataName, db);
 
     if(mManageData.dataValue)

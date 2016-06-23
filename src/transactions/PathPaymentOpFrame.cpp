@@ -6,7 +6,6 @@
 #include "transactions/PathPaymentOpFrame.h"
 #include "util/Logging.h"
 #include "ledger/LedgerDelta.h"
-#include "ledger/TrustFrame.h"
 #include "ledger/OfferFrame.h"
 #include "database/Database.h"
 #include "OfferExchange.h"
@@ -24,25 +23,57 @@ using xdr::operator==;
 
 PathPaymentOpFrame::PathPaymentOpFrame(Operation const& op,
                                        OperationResult& res,
-                                       OperationFee& fee,
+                                       OperationFee* fee,
                                        TransactionFrame& parentTx)
     : OperationFrame(op, res, fee, parentTx)
     , mPathPayment(mOperation.body.pathPaymentOp())
 {
 }
 
+TrustFrame::pointer PathPaymentOpFrame::getCommissionDest(LedgerManager const& ledgerManager, LedgerDelta& delta, Database& db,
+	AccountFrame::pointer commissionDest, Asset& asset) {
+	
+	auto commissionDestLine = TrustFrame::loadTrustLine(commissionDest->getID(), asset, db, &delta);
+
+	if (!commissionDestLine)
+	{
+		//this trust line doesn't exist, lets add it
+		commissionDestLine = std::make_shared<TrustFrame>();
+		auto& tl = commissionDestLine->getTrustLine();
+		tl.accountID = commissionDest->getID();
+		tl.asset = asset;
+		tl.limit = INT64_MAX;
+		tl.balance = 0;
+		auto issuer = AccountFrame::loadAccount(delta, getIssuer(asset), db);
+		assert(!!issuer);
+		commissionDestLine->setAuthorized(!issuer->isAuthRequired());
+
+		if (!commissionDest->addNumEntries(1, ledgerManager))
+		{
+			return nullptr;
+		}
+
+		commissionDest->storeChange(delta, db);
+		commissionDestLine->storeAdd(delta, db);
+	}
+
+	return commissionDestLine;
+}
+
 bool
 PathPaymentOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
 {
+
     Database& db = ledgerManager.getDatabase();
 
     innerResult().code(PATH_PAYMENT_SUCCESS);
-    mFee.type(opFEE_NONE);
     // tracks the last amount that was traded
-    int64_t curBReceived = mPathPayment.destAmount;
-    int64_t curBCommission = bigDivide(curBReceived, app.getConfig().COMMISSION_PERCENT, 100000000);
-    int64_t curBAmount = curBReceived - curBCommission;
+	int64_t curBCommission = 0;
+	if (mFee->type() == OperationFeeType::opFEE_CHARGED) {
+		curBCommission = mFee->fee().amountToCharge;
+	}
+    int64_t curBReceived = mPathPayment.destAmount - curBCommission;
     Asset curB = mPathPayment.destAsset;
 
     // update balances, walks backwards
@@ -65,38 +96,11 @@ PathPaymentOpFrame::doApply(Application& app,
                         (getIssuer(curB) == mPathPayment.destination);
 
     AccountFrame::pointer destination;
-    AccountFrame::pointer commissionDestination;
-    TrustFrame::pointer commissionDestLine;
+	AccountFrame::pointer commissionDestination;
 
-    commissionDestination = AccountFrame::loadAccount(delta, app.getConfig().BANK_COMMISSION_KEY, db);
-    assert(commissionDestination!=0);
-    
-    commissionDestLine = TrustFrame::loadTrustLine(app.getConfig().BANK_COMMISSION_KEY, curB,
-                              db, &delta);
-    if (!commissionDestLine)
-    {
-        //this trust line doesn't exist, lets add it
-        commissionDestLine = std::make_shared<TrustFrame>();
-        auto& tl = commissionDestLine->getTrustLine();
-        tl.accountID = app.getConfig().BANK_COMMISSION_KEY;
-        tl.asset = curB;
-        tl.limit = INT64_MAX;
-        tl.balance = 0;
-        auto issuer = AccountFrame::loadAccount(delta, getIssuer(curB), db);
-        assert(issuer!=0);
-        commissionDestLine->setAuthorized(!issuer->isAuthRequired());
+	commissionDestination = AccountFrame::loadAccount(delta, app.getConfig().BANK_COMMISSION_KEY, db);
+	assert(!!commissionDestination);
 
-        if (!commissionDestination->addNumEntries(1, ledgerManager))
-        {
-            app.getMetrics().NewMeter({"op-path-payment", "failure", "low-reserve"},
-                                      "operation").Mark();
-            innerResult().code(PATH_PAYMENT_NO_DESTINATION);
-            return false;
-        }
-        
-        commissionDestination->storeChange(delta, db);
-        commissionDestLine->storeAdd(delta, db);
-    }
     if (!bypassIssuerCheck)
     {
         destination =
@@ -115,7 +119,9 @@ PathPaymentOpFrame::doApply(Application& app,
     if (curB.type() == ASSET_TYPE_NATIVE)
     {
         destination->getAccount().balance += curBReceived;
+		commissionDestination->getAccount().balance += curBCommission;
         destination->storeChange(delta, db);
+		commissionDestination->storeChange(delta, db);
     }
     else
     {
@@ -157,29 +163,39 @@ PathPaymentOpFrame::doApply(Application& app,
             return false;
         }
 
-        if (!destLine->addBalance(curBAmount))
+        if (!destLine->addBalance(curBReceived))
         {
             app.getMetrics().NewMeter({"op-path-payment", "failure", "line-full"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_LINE_FULL);
             return false;
         }
+
+		TrustFrame::pointer commissionDestLine = getCommissionDest(ledgerManager, delta, db, commissionDestination, curB);
+
+		if (!commissionDestLine) {
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "comission-dest-low-reserve" },
+				"operation").Mark();
+			innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+			return false;
+		}
+
         if (!commissionDestLine->addBalance(curBCommission)){
             app.getMetrics().NewMeter({"op-path-payment", "failure", "commission-line-full"},
                                       "operation").Mark();
             innerResult().code(PATH_PAYMENT_LINE_FULL);
             return false;
         }
-        mFee.type(opFEE_CHARGED);
-        mFee.fee().asset = curB;
-        mFee.fee().amount = curBCommission;
+
         commissionDestLine->storeChange(delta, db);
         destLine->storeChange(delta, db);
     }
 
     innerResult().success().last =
-        SimplePaymentResult(mPathPayment.destination, curB, curBAmount);
+        SimplePaymentResult(mPathPayment.destination, curB, curBReceived);
 
+	auto curBNeedToSend = mPathPayment.destAmount;
+	
     // now, walk the path backwards
     for (int i = (int)fullPath.size() - 1; i >= 0; i--)
     {
@@ -199,7 +215,6 @@ PathPaymentOpFrame::doApply(Application& app,
                                  "operation").Mark();
                 innerResult().code(PATH_PAYMENT_NO_ISSUER);
                 innerResult().noIssuer() = curA;
-                mFee.type(opFEE_NONE);
                 return false;
             }
         }
@@ -209,7 +224,7 @@ PathPaymentOpFrame::doApply(Application& app,
         // curA -> curB
         medida::MetricsRegistry& metrics = app.getMetrics();
         OfferExchange::ConvertResult r = oe.convertWithOffers(
-            curA, INT64_MAX, curASent, curB, curBReceived, actualCurBReceived,
+            curA, INT64_MAX, curASent, curB, curBNeedToSend, actualCurBReceived,
             [this, &metrics](OfferFrame const& o)
             {
                 if (o.getSellerID() == getSourceID())
@@ -227,10 +242,9 @@ PathPaymentOpFrame::doApply(Application& app,
         switch (r)
         {
         case OfferExchange::eFilterStop:
-            mFee.type(opFEE_NONE);
             return false;
         case OfferExchange::eOK:
-            if (curBReceived == actualCurBReceived)
+            if (curBNeedToSend == actualCurBReceived)
             {
                 break;
             }
@@ -239,11 +253,10 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "too-few-offers"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_TOO_FEW_OFFERS);
-            mFee.type(opFEE_NONE);
             return false;
         }
-        assert(curBReceived == actualCurBReceived);
-        curBReceived = curASent; // next round, we need to send enough
+        assert(curBNeedToSend == actualCurBReceived);
+		curBNeedToSend = curASent; // next round, we need to send enough
         curB = curA;
 
         // add offers that got taken on the way
@@ -258,14 +271,13 @@ PathPaymentOpFrame::doApply(Application& app,
 
     int64_t curBSent;
 
-    curBSent = curBReceived;
+    curBSent = curBNeedToSend;
 
     if (curBSent > mPathPayment.sendMax)
     { // make sure not over the max
         app.getMetrics().NewMeter({"op-path-payment", "failure", "over-send-max"},
                          "operation").Mark();
         innerResult().code(PATH_PAYMENT_OVER_SENDMAX);
-        mFee.type(opFEE_NONE);
         return false;
     }
 
@@ -278,7 +290,6 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "underfunded"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_UNDERFUNDED);
-            mFee.type(opFEE_NONE);
             return false;
         }
 
@@ -304,7 +315,6 @@ PathPaymentOpFrame::doApply(Application& app,
                                  "operation").Mark();
                 innerResult().code(PATH_PAYMENT_NO_ISSUER);
                 innerResult().noIssuer() = curB;
-                mFee.type(opFEE_NONE);
                 return false;
             }
             sourceLineFrame = tlI.first;
@@ -315,7 +325,6 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "src-no-trust"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_SRC_NO_TRUST);
-            mFee.type(opFEE_NONE);
             return false;
         }
 
@@ -325,7 +334,6 @@ PathPaymentOpFrame::doApply(Application& app,
                         {"op-path-payment", "failure", "src-not-authorized"},
                         "operation").Mark();
             innerResult().code(PATH_PAYMENT_SRC_NOT_AUTHORIZED);
-            mFee.type(opFEE_NONE);
             return false;
         }
 
@@ -334,7 +342,6 @@ PathPaymentOpFrame::doApply(Application& app,
             app.getMetrics().NewMeter({"op-path-payment", "failure", "underfunded"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_UNDERFUNDED);
-            mFee.type(opFEE_NONE);
             return false;
         }
 
@@ -350,7 +357,28 @@ PathPaymentOpFrame::doApply(Application& app,
 bool
 PathPaymentOpFrame::doCheckValid(Application& app)
 {
-    if (mPathPayment.destAmount <= 0 || mPathPayment.sendMax <= 0)
+	// Fee can't be nullptr
+	assert(!!mFee);
+	int64 commission = 0;
+	if (mFee->type() != OperationFeeType::opFEE_NONE) {
+
+		if (!(mFee->fee().asset == mPathPayment.destAsset)) {
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "fee-invalid-asset" },
+				"operation").Mark();
+			innerResult().code(PATH_PAYMENT_MALFORMED);
+			return false;
+		}
+
+		if (mFee->fee().amountToCharge < 0) {
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "fee-invalid-amount" },
+				"operation").Mark();
+			innerResult().code(PATH_PAYMENT_MALFORMED);
+			return false;
+		}
+
+		commission = mFee->fee().amountToCharge;
+	}
+    if (mPathPayment.destAmount - commission <= 0 || mPathPayment.sendMax <= 0)
     {
         app.getMetrics().NewMeter({"op-path-payment", "invalid", "malformed-amounts"},
                          "operation").Mark();

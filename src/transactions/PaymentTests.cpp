@@ -47,8 +47,6 @@ TEST_CASE("payment", "[tx][payment]")
     SecretKey a1 = getAccount("A");
     SecretKey b1 = getAccount("B");
 
-    Asset xlmCur;
-
     const int64_t paymentAmount = 100;
 
     SequenceNumber rootSeq = getAccountSeqNum(root, app) + 1;
@@ -67,6 +65,7 @@ TEST_CASE("payment", "[tx][payment]")
 
     Asset idrCur = makeAsset(root, "IDR");
     Asset usdCur = makeAsset(root, "USD");
+	Asset eurCur = makeAsset(root, "EUR");
 
     AccountFrame::pointer a1Account, rootAccount;
     rootAccount = loadAccount(root, app);
@@ -124,7 +123,7 @@ TEST_CASE("payment", "[tx][payment]")
         applyChangeTrust(app, a1, root, a1Seq++, "IDR", trustLineLimit);
 
         applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++,
-                             trustLineStartingBalance, PAYMENT_NOT_AUTHORIZED);
+                             trustLineStartingBalance, nullptr, PAYMENT_NOT_AUTHORIZED);
 
         applyAllowTrust(app, root, a1, rootSeq++, "IDR", true);
 
@@ -135,7 +134,7 @@ TEST_CASE("payment", "[tx][payment]")
         applyAllowTrust(app, root, a1, rootSeq++, "IDR", false);
 
         applyCreditPaymentTx(app, a1, root, idrCur, a1Seq++,
-                             trustLineStartingBalance,
+                             trustLineStartingBalance, nullptr,
                              PAYMENT_SRC_NOT_AUTHORIZED);
 
         applyAllowTrust(app, root, a1, rootSeq++, "IDR", true);
@@ -143,12 +142,18 @@ TEST_CASE("payment", "[tx][payment]")
         applyCreditPaymentTx(app, a1, root, idrCur, a1Seq++,
                              trustLineStartingBalance);
     }
+	SECTION("Invalid issuer") {
+		applyChangeTrust(app, a1, b1, a1Seq++, "USD", INT64_MAX, CHANGE_TRUST_MALFORMED);
+		auto invalidCur = makeAsset(b1, "USD");
+		applyCreditPaymentTx(app, a1, b1, invalidCur, a1Seq++, 123, nullptr, PAYMENT_MALFORMED);
+	}
     SECTION("payment through path")
     {
-        SECTION("send XLM with path (not enough offers)")
+        SECTION("send EUR with path (not enough offers)")
         {
+			applyChangeTrust(app, a1, root, a1Seq++, "EUR", trustLineLimit);
             applyPathPaymentTx(app, root, a1, idrCur, morePayment * 10,
-                               xlmCur, morePayment, rootSeq++,
+                               eurCur, morePayment, rootSeq++, nullptr,
                                PATH_PAYMENT_TOO_FEW_OFFERS);
         }
 
@@ -205,7 +210,7 @@ TEST_CASE("payment", "[tx][payment]")
 
             auto res = applyPathPaymentTx(
                 app, a1, b1, usdCur, 149 * assetMultiplier, idrCur,
-                100 * assetMultiplier, a1Seq++, PATH_PAYMENT_OVER_SENDMAX);
+                100 * assetMultiplier, a1Seq++, nullptr, PATH_PAYMENT_OVER_SENDMAX);
         }
 
         SECTION("send with path (success)")
@@ -216,7 +221,7 @@ TEST_CASE("payment", "[tx][payment]")
 
             auto res = applyPathPaymentTx(
                 app, a1, b1, usdCur, 250 * assetMultiplier, idrCur,
-                125 * assetMultiplier, a1Seq++, PATH_PAYMENT_SUCCESS);
+                125 * assetMultiplier, a1Seq++, nullptr, PATH_PAYMENT_SUCCESS);
 
             auto const& multi = res.success();
 
@@ -257,73 +262,19 @@ TEST_CASE("payment", "[tx][payment]")
                          trustLineStartingBalance - 200 * assetMultiplier);
         }
 
-        SECTION("missing issuer")
-        {
-            SECTION("dest is standard account")
-            {
-                SECTION("last")
-                {
-                    // root issued idrCur
-                    applyAccountMerge(app, root, root, rootSeq++);
-
-                    auto res = applyPathPaymentTx(
-                        app, a1, b1, usdCur, 250 * assetMultiplier, idrCur,
-                        125 * assetMultiplier, a1Seq++, PATH_PAYMENT_NO_ISSUER);
-                    REQUIRE(res.noIssuer() == idrCur);
-                }
-                SECTION("first")
-                {
-                    // root issued usdCur
-                    applyAccountMerge(app, root, root, rootSeq++);
-
-                    auto res = applyPathPaymentTx(
-                        app, a1, b1, usdCur, 250 * assetMultiplier, idrCur,
-                        125 * assetMultiplier, a1Seq++, PATH_PAYMENT_NO_ISSUER);
-                    REQUIRE(res.noIssuer() == usdCur);
-                }
-                SECTION("mid")
-                {
-                    std::vector<Asset> path;
-                    SecretKey missing = getAccount("missing");
-                    Asset btcCur = makeAsset(missing, "BTC");
-                    path.emplace_back(btcCur);
-                    auto res = applyPathPaymentTx(
-                        app, a1, b1, usdCur, 250 * assetMultiplier, idrCur,
-                        125 * assetMultiplier, a1Seq++, PATH_PAYMENT_NO_ISSUER,
-                        &path);
-                    REQUIRE(res.noIssuer() == btcCur);
-                }
-            }
-            SECTION("dest is issuer")
-            {
-                // single currency payment already covered elsewhere
-                // only one negative test:
-                SECTION("cannot take offers on the way")
-                {
-                    // root issued idrCur
-                    applyAccountMerge(app, root, root, rootSeq++);
-
-                    auto res = applyPathPaymentTx(
-                        app, a1, root, usdCur, 250 * assetMultiplier, idrCur,
-                        125 * assetMultiplier, a1Seq++,
-                        PATH_PAYMENT_NO_DESTINATION);
-                }
-            }
-        }
-
         SECTION("send with path (takes own offer)")
         {
             // raise A1's balance by what we're trying to send
-            applyPaymentTx(app, root, a1, rootSeq++, 100 * assetMultiplier);
+            applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++, 100 * assetMultiplier);
 
-            // offer is sell 100 USD for 100 XLM
-            applyCreateOffer(app, delta, 0, a1, usdCur, xlmCur, Price(1, 1),
+            // offer is sell 100 USD for 100 IDR
+            applyCreateOffer(app, delta, 0, a1, usdCur, idrCur, Price(1, 1),
                              100 * assetMultiplier, a1Seq++);
 
-            // A1: try to send 100 USD to B1 using XLM
+            // A1: try to send 100 USD to B1 using IDR
 
-            applyPathPaymentTx(app, a1, b1, xlmCur, 100 * assetMultiplier,
-                               usdCur, 100 * assetMultiplier, a1Seq++,
+            applyPathPaymentTx(app, a1, b1, idrCur, 100 * assetMultiplier,
+                               usdCur, 100 * assetMultiplier, a1Seq++, nullptr,
                                PATH_PAYMENT_OFFER_CROSS_SELF);
         }
 
@@ -339,7 +290,7 @@ TEST_CASE("payment", "[tx][payment]")
 
             auto res = applyPathPaymentTx(
                 app, a1, b1, usdCur, 400 * assetMultiplier, idrCur,
-                105 * assetMultiplier, a1Seq++, PATH_PAYMENT_SUCCESS);
+                105 * assetMultiplier, a1Seq++, nullptr, PATH_PAYMENT_SUCCESS);
 
             auto& multi = res.success();
 
@@ -390,7 +341,7 @@ TEST_CASE("payment", "[tx][payment]")
             {
                 auto res = applyPathPaymentTx(
                     app, a1, b1, usdCur, 200 * assetMultiplier, idrCur,
-                    25 * assetMultiplier, a1Seq++, PATH_PAYMENT_SUCCESS);
+                    25 * assetMultiplier, a1Seq++, nullptr, PATH_PAYMENT_SUCCESS);
 
                 auto& multi = res.success();
 
@@ -446,6 +397,97 @@ TEST_CASE("payment", "[tx][payment]")
             }
         }
     }
+	SECTION("fee") {
+		applyCreateAccountTx(app, root, b1, rootSeq++, 0);
+		auto b1Seq = getAccountSeqNum(b1, app) + 1;
+		applyChangeTrust(app, a1, root, a1Seq++, "USD", INT64_MAX);
+		applyChangeTrust(app, b1, root, b1Seq++, "USD", INT64_MAX);
+		applyCreditPaymentTx(app, root, a1, usdCur, rootSeq++, paymentAmount);
+
+		SECTION("invalid fee") {
+			SECTION("fee is not set") {
+				auto paymentFrame = createCreditPaymentTx(app.getNetworkID(), a1, b1, usdCur, a1Seq++, paymentAmount);
+				TransactionEnvelope env = paymentFrame->getEnvelope();
+				env.operationFees.clear();
+				auto payment = std::make_shared<TransactionFrame>(app.getNetworkID(), env);
+				applyCheck(payment, delta, app);
+				REQUIRE(payment->getResultCode() == txINTERNAL_ERROR);
+			}
+			SECTION("too many fee") {
+				auto paymentFrame = createCreditPaymentTx(app.getNetworkID(), a1, b1, usdCur, a1Seq++, paymentAmount);
+				TransactionEnvelope env = paymentFrame->getEnvelope();
+				OperationFee fee;
+				fee.type(OperationFeeType::opFEE_NONE);
+				env.operationFees.push_back(fee);
+				auto payment = std::make_shared<TransactionFrame>(app.getNetworkID(), env);
+				applyCheck(payment, delta, app);
+				REQUIRE(payment->getResultCode() == txINTERNAL_ERROR);
+			}
+			SECTION("fee - invalid asset") {
+				OperationFee fee;
+				fee.type(OperationFeeType::opFEE_CHARGED);
+				fee.fee().amountToCharge = paymentAmount / 2;
+				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, &fee, PAYMENT_MALFORMED);
+			}
+			SECTION("negative fee") {
+				OperationFee fee;
+				fee.type(OperationFeeType::opFEE_CHARGED);
+				fee.fee().amountToCharge = -2;
+				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, &fee, PAYMENT_MALFORMED);
+			}
+			SECTION("fee greater than amount") {
+				OperationFee fee;
+				fee.type(OperationFeeType::opFEE_CHARGED);
+				fee.fee().amountToCharge = paymentAmount * 2;
+				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, &fee, PAYMENT_MALFORMED);
+			}
+			SECTION("issuer large amounts")
+			{
+				applyChangeTrust(app, a1, root, a1Seq++, "EUR", INT64_MAX);
+				auto paymentAmount = INT64_MAX;
+				OperationFee fee;
+				fee.type(OperationFeeType::opFEE_CHARGED);
+				fee.fee().amountToCharge = paymentAmount / 10;
+				fee.fee().asset = eurCur;
+				applyCreditPaymentTx(app, root, a1, eurCur, rootSeq++, INT64_MAX, &fee);
+				auto line = loadTrustLine(a1, eurCur, app);
+				auto balance = INT64_MAX - fee.fee().amountToCharge;
+				REQUIRE(line->getBalance() == balance);
+
+				auto commissionLine = loadTrustLine(commissionSeed, eurCur, app);
+				REQUIRE(commissionLine);
+				REQUIRE(commissionLine->getBalance() == fee.fee().amountToCharge);
+
+				// send it all back
+				applyCreditPaymentTx(app, a1, root, eurCur, a1Seq++, balance);
+				line = loadTrustLine(a1, eurCur, app);
+				REQUIRE(line->getBalance() == 0);
+			}
+			SECTION("success path payment") {
+				applyChangeTrust(app, a1, root, a1Seq++, "IDR", INT64_MAX);
+				applyChangeTrust(app, b1, root, b1Seq++, "IDR", INT64_MAX);
+				applyCreditPaymentTx(app, root, b1, idrCur, rootSeq++, paymentAmount);
+				applyCreateOffer(app, delta, 0, b1, idrCur, usdCur, Price(1, 1), paymentAmount, b1Seq++);
+
+				auto a1Line = loadTrustLine(a1, usdCur, app, false);
+				auto oldBalance = a1Line->getBalance();
+				OperationFee fee;
+				fee.type(OperationFeeType::opFEE_CHARGED);
+				fee.fee().amountToCharge = paymentAmount / 2;
+				fee.fee().asset = idrCur;
+				applyPathPaymentTx(app, a1, b1, usdCur, paymentAmount, idrCur, paymentAmount, a1Seq++, &fee);
+				
+				auto b1Line = loadTrustLine(b1, idrCur, app);
+				REQUIRE(b1Line->getBalance() == paymentAmount - fee.fee().amountToCharge);
+
+				a1Line = loadTrustLine(a1, usdCur, app, false);
+				REQUIRE((a1Line->getBalance() == (oldBalance - paymentAmount)));
+
+				auto commLine = loadTrustLine(commissionSeed, idrCur, app);
+				REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
+			}
+		}
+	}
 }
 
 TEST_CASE("single create account SQL", "[singlesql][paymentsql][hide]")

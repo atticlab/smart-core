@@ -15,7 +15,7 @@ namespace stellar
 {
 using xdr::operator==;
 
-MergeOpFrame::MergeOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+MergeOpFrame::MergeOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                            TransactionFrame& parentTx)
     : OperationFrame(op, res, fee, parentTx)
 {
@@ -38,7 +38,6 @@ MergeOpFrame::doApply(Application& app, LedgerDelta& delta,
 {
     AccountFrame::pointer otherAccount;
     Database& db = ledgerManager.getDatabase();
-    mFee.type(opFEE_NONE);
     otherAccount =
         AccountFrame::loadAccount(delta, mOperation.body.destination(), db);
 

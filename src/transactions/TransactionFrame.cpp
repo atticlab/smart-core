@@ -211,8 +211,6 @@ TransactionFrame::resetResults()
 {
     // pre-allocates the results for all operations
     getResult().result.code(txSUCCESS);
-    getResult().fees.resize(
-        (uint32_t)mEnvelope.tx.operations.size());
     getResult().result.results().resize(
         (uint32_t)mEnvelope.tx.operations.size());
 
@@ -221,14 +219,15 @@ TransactionFrame::resetResults()
     // bind operations to the results and to fees
     for (size_t i = 0; i < mEnvelope.tx.operations.size(); i++)
     {
+		OperationFee* fee = nullptr;
+		// if fees size is not equel to operations size tx fill be failed before operations processing 
+		if (i < mEnvelope.operationFees.size()) {
+			fee = &mEnvelope.operationFees[i];
+		}
         mOperations.push_back(
             OperationFrame::makeHelper(mEnvelope.tx.operations[i],
-                                       getResult().result.results()[i], getResult().fees[i], *this));
+                                       getResult().result.results()[i], fee, *this));
     }
-
-    // feeCharged is updated accordingly to represent the cost of the
-    // transaction regardless of the failure modes.
-//    getResult().feeCharged = getFee();
 }
 
 bool
@@ -246,6 +245,16 @@ TransactionFrame::commonValid(Application& app, LedgerDelta* delta,
         getResult().result.code(txMISSING_OPERATION);
         return false;
     }
+
+	if (mOperations.size() != mEnvelope.operationFees.size())
+	{
+		app.getMetrics()
+			.NewMeter({ "transaction", "invalid", "malformed-fees" },
+				"transaction")
+			.Mark();
+		getResult().result.code(txINTERNAL_ERROR);
+		return false;
+	}
 
     auto& lm = app.getLedgerManager();
     if (mEnvelope.tx.timeBounds)

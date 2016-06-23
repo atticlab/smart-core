@@ -26,7 +26,7 @@ using xdr::operator==;
 
 ManageOfferOpFrame::ManageOfferOpFrame(Operation const& op,
                                        OperationResult& res,
-                                       OperationFee& fee,
+                                       OperationFee* fee,
                                        TransactionFrame& parentTx)
     : OperationFrame(op, res, fee, parentTx)
     , mManageOffer(mOperation.body.manageOfferOp())
@@ -125,7 +125,6 @@ ManageOfferOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
 {
     Database& db = ledgerManager.getDatabase();
-    mFee.type(opFEE_NONE);
     if (!checkOfferValid(app.getMetrics(), db, delta))
     {
         return false;

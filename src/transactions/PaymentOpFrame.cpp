@@ -22,7 +22,7 @@ namespace stellar
 using namespace std;
 using xdr::operator==;
 
-PaymentOpFrame::PaymentOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+PaymentOpFrame::PaymentOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                                TransactionFrame& parentTx)
     : OperationFrame(op, res, fee, parentTx), mPayment(mOperation.body.paymentOp())
 {
@@ -32,7 +32,6 @@ bool
 PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
                         LedgerManager& ledgerManager)
 {
-    mFee.type(opFEE_NONE);
     // if sending to self directly, just mark as success
     if (mPayment.destination == getSourceID())
     {
@@ -116,7 +115,6 @@ PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
             throw std::runtime_error("Unexpected error code from pathPayment");
         }
         innerResult().code(res);
-        mFee.type(opFEE_NONE);
         return false;
     }
 
@@ -132,7 +130,29 @@ PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
 bool
 PaymentOpFrame::doCheckValid(Application& app)
 {
-    if (mPayment.amount <= 0)
+	// Fee can't be nullptr
+	assert(!!mFee);
+	int64 commission = 0;
+	if (mFee->type() != OperationFeeType::opFEE_NONE) {
+
+		if (!(mFee->fee().asset == mPayment.asset)) {
+			app.getMetrics().NewMeter({ "op-payment", "failure", "fee-invalid-asset" },
+				"operation").Mark();
+			innerResult().code(PAYMENT_MALFORMED);
+			return false;
+		}
+
+		if (mFee->fee().amountToCharge < 0) {
+			app.getMetrics().NewMeter({ "op-payment", "failure", "fee-invalid-amount" },
+				"operation").Mark();
+			innerResult().code(PAYMENT_MALFORMED);
+			return false;
+		}
+
+		commission = mFee->fee().amountToCharge;
+	}
+
+    if (mPayment.amount - commission <= 0)
     {
         app.getMetrics().NewMeter({"op-payment", "invalid", "malformed-negative-amount"},
                          "operation").Mark();

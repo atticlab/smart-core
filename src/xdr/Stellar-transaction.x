@@ -321,11 +321,39 @@ struct Transaction
     ext;
 };
 
+enum OperationFeeType
+{
+    opFEE_NONE = 0,
+    opFEE_CHARGED = 1
+};
+
+union OperationFee switch (OperationFeeType type)
+{
+case opFEE_NONE:
+    void;
+case opFEE_CHARGED:
+    struct
+    {
+        Asset asset;
+        int64 amountToCharge;
+		int64* percentFee;
+		int64* flatFee;
+		// reserved for future use
+		union switch (int v)
+		{
+		case 0:
+			void;
+		}
+		ext;
+    } fee;
+};
+
 /* A TransactionEnvelope wraps a transaction with signatures. */
 struct TransactionEnvelope
 {
     Transaction tx;
     DecoratedSignature signatures<20>;
+	OperationFee operationFees<100>; // actual fees charged for the transaction
 };
 
 /* Operation Results section */
@@ -677,24 +705,6 @@ default:
     void;
 };
 
-enum OperationFeeType
-{
-    opFEE_NONE = 0,
-    opFEE_CHARGED = 1
-};
-
-union OperationFee switch (OperationFeeType type)
-{
-case opFEE_NONE:
-    void;
-case opFEE_CHARGED:
-    struct
-    {
-        Asset asset;
-        int64 amount;
-    } fee;
-};
-
 enum TransactionResultCode
 {
     txSUCCESS = 0, // all operations succeeded
@@ -716,7 +726,6 @@ enum TransactionResultCode
 
 struct TransactionResult
 {
-    OperationFee fees<>; // actual fees charged for the transaction
     union switch (TransactionResultCode code)
     {
     case txSUCCESS:

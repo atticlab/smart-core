@@ -32,7 +32,7 @@ namespace stellar
 using namespace std;
 
 shared_ptr<OperationFrame>
-OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationFee& fee,
+OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationFee* fee,
                            TransactionFrame& tx)
 {
     switch (op.body.type())
@@ -67,7 +67,7 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationF
     }
 }
 
-OperationFrame::OperationFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+OperationFrame::OperationFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                                TransactionFrame& parentTx)
     : mOperation(op), mParentTx(parentTx), mResult(res), mFee(fee)
 {

@@ -305,7 +305,7 @@ checkTransaction(TransactionFrame& txFrame)
 
 TransactionFramePtr
 transactionFromOperation(Hash const& networkID, SecretKey& from,
-                         SequenceNumber seq, Operation const& op)
+                         SequenceNumber seq, Operation const& op, OperationFee* fee = nullptr)
 {
     TransactionEnvelope e;
 
@@ -313,6 +313,14 @@ transactionFromOperation(Hash const& networkID, SecretKey& from,
     e.tx.fee = 0;
     e.tx.seqNum = seq;
     e.tx.operations.push_back(op);
+	if (fee != nullptr) {
+		e.operationFees.push_back(*fee);
+	}
+	else {
+		OperationFee defaultFee;
+		defaultFee.type(OperationFeeType::opFEE_NONE);
+		e.operationFees.push_back(defaultFee);
+	}
 
     TransactionFramePtr res =
         TransactionFrame::makeTransactionFromWire(networkID, e);
@@ -505,7 +513,7 @@ applyChangeTrust(Application& app, SecretKey& from, SecretKey& to,
 
 TransactionFramePtr
 createCreditPaymentTx(Hash const& networkID, SecretKey& from, SecretKey& to,
-                      Asset& asset, SequenceNumber seq, int64_t amount)
+                      Asset& asset, SequenceNumber seq, int64_t amount, OperationFee* fee)
 {
     Operation op;
     op.body.type(PAYMENT);
@@ -513,7 +521,7 @@ createCreditPaymentTx(Hash const& networkID, SecretKey& from, SecretKey& to,
     op.body.paymentOp().asset = asset;
     op.body.paymentOp().destination = to.getPublicKey();
 
-    return transactionFromOperation(networkID, from, seq, op);
+    return transactionFromOperation(networkID, from, seq, op, fee);
 }
 
 Asset
@@ -528,13 +536,13 @@ makeAsset(SecretKey& issuer, std::string const& code)
 
 PaymentResult
 applyCreditPaymentTx(Application& app, SecretKey& from, SecretKey& to,
-                     Asset& ci, SequenceNumber seq, int64_t amount,
+                     Asset& ci, SequenceNumber seq, int64_t amount, OperationFee* fee,
                      PaymentResultCode result)
 {
     TransactionFramePtr txFrame;
 
     txFrame =
-        createCreditPaymentTx(app.getNetworkID(), from, to, ci, seq, amount);
+        createCreditPaymentTx(app.getNetworkID(), from, to, ci, seq, amount, fee);
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
@@ -554,6 +562,7 @@ TransactionFramePtr
 createPathPaymentTx(Hash const& networkID, SecretKey& from, SecretKey& to,
                     Asset const& sendCur, int64_t sendMax, Asset const& destCur,
                     int64_t destAmount, SequenceNumber seq,
+					OperationFee* fee,
                     std::vector<Asset>* path)
 {
     Operation op;
@@ -572,19 +581,19 @@ createPathPaymentTx(Hash const& networkID, SecretKey& from, SecretKey& to,
         }
     }
 
-    return transactionFromOperation(networkID, from, seq, op);
+    return transactionFromOperation(networkID, from, seq, op, fee);
 }
 
 PathPaymentResult
 applyPathPaymentTx(Application& app, SecretKey& from, SecretKey& to,
                    Asset const& sendCur, int64_t sendMax, Asset const& destCur,
-                   int64_t destAmount, SequenceNumber seq,
+                   int64_t destAmount, SequenceNumber seq, OperationFee* fee, 
                    PathPaymentResultCode result, std::vector<Asset>* path)
 {
     TransactionFramePtr txFrame;
 
     txFrame = createPathPaymentTx(app.getNetworkID(), from, to, sendCur,
-                                  sendMax, destCur, destAmount, seq, path);
+                                  sendMax, destCur, destAmount, seq, fee, path);
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());

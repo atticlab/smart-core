@@ -24,7 +24,7 @@ using xdr::operator==;
 
 CreateAccountOpFrame::CreateAccountOpFrame(Operation const& op,
                                            OperationResult& res,
-                                           OperationFee& fee,
+                                           OperationFee* fee,
                                            TransactionFrame& parentTx)
     : OperationFrame(op, res, fee, parentTx)
     , mCreateAccount(mOperation.body.createAccountOp())
@@ -38,7 +38,6 @@ CreateAccountOpFrame::doApply(Application& app,
     AccountFrame::pointer destAccount;
 
     Database& db = ledgerManager.getDatabase();
-    mFee.type(opFEE_NONE);
 
     destAccount =
         AccountFrame::loadAccount(delta, mCreateAccount.destination, db);

@@ -67,8 +67,6 @@ using xdr::operator<;
     NODE_IS_VALIDATOR = false;
 
     DATABASE = "sqlite3://:memory:";
-    
-    COMMISSION_PERCENT = 1000000;
 }
 
 void
@@ -422,15 +420,6 @@ Config::load(std::string const& filename)
                 
                 parseNodeID(item.second->as<std::string>()->value(),
                             BANK_COMMISSION_KEY);
-            }
-            else if (item.first == "COMMISSION_PERCENT")
-            {
-                if (!item.second->as<int64_t>())
-                {
-                    throw std::invalid_argument("invalid COMMISSION_PERCENT");
-                }
-                
-                COMMISSION_PERCENT = (int32_t)item.second->as<int64_t>()->value();
             }
             else if (item.first == "NODE_IS_VALIDATOR")
             {

@@ -14,7 +14,7 @@ namespace stellar
 {
 
 ChangeTrustOpFrame::ChangeTrustOpFrame(Operation const& op,
-                                       OperationResult& res, OperationFee& fee,
+                                       OperationResult& res, OperationFee* fee,
                                        TransactionFrame& parentTx)
     : OperationFrame(op, res, fee, parentTx)
     , mChangeTrust(mOperation.body.changeTrustOp())
@@ -25,7 +25,6 @@ ChangeTrustOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
 {
     Database& db = ledgerManager.getDatabase();
-    mFee.type(opFEE_NONE);
     auto tlI = TrustFrame::loadTrustLineIssuer(getSourceID(), mChangeTrust.line,
                                                db, delta);
 

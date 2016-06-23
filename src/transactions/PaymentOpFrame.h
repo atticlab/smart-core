@@ -19,7 +19,7 @@ class PaymentOpFrame : public OperationFrame
     PaymentOp const& mPayment;
 
   public:
-    PaymentOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+    PaymentOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                    TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,

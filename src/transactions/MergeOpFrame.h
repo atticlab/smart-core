@@ -19,7 +19,7 @@ class MergeOpFrame : public OperationFrame
     int32_t getNeededThreshold() const override;
 
   public:
-    MergeOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+    MergeOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                  TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,

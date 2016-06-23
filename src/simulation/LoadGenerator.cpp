@@ -1051,7 +1051,7 @@ LoadGenerator::TxInfo::toTransactionFrames(
             auto sendMax = mAmount * 10;
             txs.emplace_back(txtest::createPathPaymentTx(
                 networkID, mFrom->mKey, mTo->mKey, sendAsset, sendMax,
-                recvAsset, mAmount, mFrom->mSeq + 1, &assetPath));
+                recvAsset, mAmount, mFrom->mSeq + 1, nullptr, &assetPath));
         }
     }
     break;

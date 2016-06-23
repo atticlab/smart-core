@@ -19,7 +19,7 @@ class SetOptionsOpFrame : public OperationFrame
     SetOptionsOp const& mSetOptions;
 
   public:
-    SetOptionsOpFrame(Operation const& op, OperationResult& res, OperationFee& fee,
+    SetOptionsOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                       TransactionFrame& parentTx);
 
     bool doApply(Application& app, LedgerDelta& delta,
