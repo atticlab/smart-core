@@ -102,7 +102,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\lib\soci\src\core;c:\Program Files\PostgreSQL\9.4\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\lib\soci\src\core;c:\Program Files\PostgreSQL\9.5\include</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -113,7 +113,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>C:\Program Files\PostgreSQL\9.4\lib\libpq.lib</AdditionalDependencies>
+      <AdditionalDependencies>C:\Program Files\PostgreSQL\9.5\lib\libpq.lib</AdditionalDependencies>
       <TargetMachine>MachineX64</TargetMachine>
     </Lib>
   </ItemDefinitionGroup>
