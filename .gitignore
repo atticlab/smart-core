@@ -101,3 +101,5 @@ xcuserdata/
 *.moved-aside
 *.xccheckout
 *.xcscmblueprint
+Builds/VisualStudio2015/archtmp/
+Builds/VisualStudio2015/stellar-core-test-*

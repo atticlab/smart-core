@@ -93,6 +93,8 @@ class HistoryTests
     SecretKey mAlice;
     SecretKey mBob;
     SecretKey mCarol;
+	Asset mAsset;
+	std::string mAssetCode;
 
     std::default_random_engine mGenerator;
     std::bernoulli_distribution mFlip{0.5};
@@ -127,7 +129,9 @@ class HistoryTests
         , mAlice(txtest::getAccount("alice"))
         , mBob(txtest::getAccount("bob"))
         , mCarol(txtest::getAccount("carol"))
+		, mAssetCode("USD")
     {
+		mAsset = txtest::makeAsset(mRoot, mAssetCode);
         CHECK(HistoryManager::initializeHistoryArchive(app, "test"));
     }
 
@@ -249,33 +253,99 @@ TEST_CASE_METHOD(HistoryTests, "HistoryArchiveState::get_put", "[history]")
 
 extern LedgerEntry generateValidLedgerEntry();
 
+void createAccountIfNotExist(TxSetFramePtr txSet, Database& db, Hash const& networkID, SecretKey& from, SecretKey& to, SequenceNumber& seq) {
+	AccountID const& accountID = to.getPublicKey();
+	auto account = AccountFrame::loadAccount(accountID, db);
+	if (!account) {
+		CLOG(INFO, "History") << "creating account " << to.getStrKeyPublic();
+		txSet->add(
+			txtest::createCreateAccountTx(networkID, from, to, seq++, 0));
+	}
+}
+
+void createTrustLineIfNotExist(TxSetFramePtr txSet, Application& app, Hash const& networkID, SecretKey& from, SecretKey& to, std::string const& assetCode) {
+	AccountID const& accountID = from.getPublicKey();
+	auto account = AccountFrame::loadAccount(accountID, app.getDatabase());
+	if (!account) {
+		CLOG(INFO, "History") << "account does not exist - failed to create trust line";
+		return;
+	}
+	auto asset = txtest::makeAsset(to, assetCode);
+	auto line = txtest::loadTrustLine(from, asset, app, false);
+	if (!line) {
+		SequenceNumber seq = txtest::getAccountSeqNum(from, app) + 1;
+		txSet->add(
+			txtest::createChangeTrust(networkID, from, to, seq++, assetCode, INT64_MAX));
+	}
+}
+
+/*void createPaymentIfLineExists(TxSetFramePtr txSet, Application& app, Hash const& networkID, SecretKey& from, SecretKey& to, Asset& asset, int64_t amount, int64_t feeAmount) {
+	CLOG(INFO, "History") << "creating payment " << from.getStrKeyPublic();
+	AccountID const& accountID = from.getPublicKey();
+	auto account = AccountFrame::loadAccount(accountID, app.getDatabase());
+	if (!account) {
+		CLOG(INFO, "History") << "account does not exist - failed to create payment";
+		return;
+	}
+	auto line = txtest::loadTrustLine(from, asset, app, false);
+	if (!line) {
+		CLOG(INFO, "History") << "line does not exist - failed to create payment";
+		return;
+	}
+	SequenceNumber seq = txtest::getAccountSeqNum(from, app) + 1;
+	OperationFee fee;
+	fee.type(OperationFeeType::opFEE_CHARGED);
+	fee.fee().amountToCharge = feeAmount;
+	fee.fee().asset = asset;
+	fee.fee().flatFee.activate() = feeAmount;
+	txSet->add(
+		txtest::createCreditPaymentTx(networkID, from, to, asset, seq++, amount, &fee));
+}*/
+
+int64_t getLineBalance(SecretKey const& k, Asset const& asset, Application& app) {
+	auto line = txtest::loadTrustLine(k, asset, app, false);
+	if (!line) {
+		return 0;
+	}
+	return line->getBalance();
+}
+
 void
 HistoryTests::generateRandomLedger()
 {
+	CLOG(INFO, "History") << "generating random ledger";
     auto& lm = app.getLedgerManager();
     TxSetFramePtr txSet =
         std::make_shared<TxSetFrame>(lm.getLastClosedLedgerHeader().hash);
 
     uint32_t ledgerSeq = lm.getLedgerNum();
-    uint64_t minBalance = lm.getMinBalance(5);
-    uint64_t big = minBalance + ledgerSeq;
+    uint64_t balance = 1000000000;
+    uint64_t big = balance + ledgerSeq;
     uint64_t small = 100 + ledgerSeq;
+	uint64_t feeAmount = 50;
     uint64_t closeTime = 60 * 5 * ledgerSeq;
 
     SequenceNumber rseq = txtest::getAccountSeqNum(mRoot, app) + 1;
 
     Hash const& networkID = app.getNetworkID();
-
-    // Root sends to alice every tx, bob every other tx, carol every 4rd tx.
-    txSet->add(
-        txtest::createCreateAccountTx(networkID, mRoot, mAlice, rseq++, big));
-    txSet->add(
-        txtest::createCreateAccountTx(networkID, mRoot, mBob, rseq++, big));
-    txSet->add(
-        txtest::createCreateAccountTx(networkID, mRoot, mCarol, rseq++, big));
-    txSet->add(txtest::createPaymentTx(networkID, mRoot, mAlice, rseq++, big));
-    txSet->add(txtest::createPaymentTx(networkID, mRoot, mBob, rseq++, big));
-    txSet->add(txtest::createPaymentTx(networkID, mRoot, mCarol, rseq++, big));
+	OperationFee fee;
+	fee.type(OperationFeeType::opFEE_CHARGED);
+	fee.fee().amountToCharge = feeAmount;
+	fee.fee().asset = mAsset;
+	fee.fee().flatFee.activate() = feeAmount;
+    
+	createAccountIfNotExist(txSet, app.getDatabase(), networkID, mRoot, mAlice, rseq);
+	createAccountIfNotExist(txSet, app.getDatabase(), networkID, mRoot, mBob, rseq);
+	createAccountIfNotExist(txSet, app.getDatabase(), networkID, mRoot, mCarol, rseq);
+	createTrustLineIfNotExist(txSet, app, networkID, mAlice, mRoot, mAssetCode);
+	createTrustLineIfNotExist(txSet, app, networkID, mBob, mRoot, mAssetCode);
+	createTrustLineIfNotExist(txSet, app, networkID, mCarol, mRoot, mAssetCode);
+	txSet->add(
+		txtest::createCreditPaymentTx(networkID, mRoot, mAlice, mAsset, rseq++, balance, &fee));
+	txSet->add(
+		txtest::createCreditPaymentTx(networkID, mRoot, mBob, mAsset, rseq++, balance, &fee));
+	txSet->add(
+		txtest::createCreditPaymentTx(networkID, mRoot, mCarol, mAsset, rseq++, balance, &fee));
 
     // They all randomly send a little to one another every ledger after #4
     if (ledgerSeq > 4)
@@ -285,25 +355,25 @@ HistoryTests::generateRandomLedger()
         SequenceNumber cseq = txtest::getAccountSeqNum(mCarol, app) + 1;
 
         if (flip())
-            txSet->add(txtest::createPaymentTx(networkID, mAlice, mBob, aseq++,
-                                               small));
+			txSet->add(
+				txtest::createCreditPaymentTx(networkID, mAlice, mBob, mAsset, aseq++, small, &fee));
         if (flip())
-            txSet->add(txtest::createPaymentTx(networkID, mAlice, mCarol,
-                                               aseq++, small));
+			txSet->add(
+				txtest::createCreditPaymentTx(networkID, mAlice, mCarol, mAsset, aseq++, small, &fee));
 
         if (flip())
-            txSet->add(txtest::createPaymentTx(networkID, mBob, mAlice, bseq++,
-                                               small));
+			txSet->add(
+				txtest::createCreditPaymentTx(networkID, mBob, mAlice, mAsset, bseq++, small, &fee));
         if (flip())
-            txSet->add(txtest::createPaymentTx(networkID, mBob, mCarol, bseq++,
-                                               small));
+			txSet->add(
+				txtest::createCreditPaymentTx(networkID, mBob, mCarol, mAsset, bseq++, small, &fee));
 
         if (flip())
-            txSet->add(txtest::createPaymentTx(networkID, mCarol, mAlice,
-                                               cseq++, small));
+			txSet->add(
+				txtest::createCreditPaymentTx(networkID, mCarol, mAlice, mAsset, cseq++, small, &fee));
         if (flip())
-            txSet->add(txtest::createPaymentTx(networkID, mCarol, mBob, cseq++,
-                                               small));
+			txSet->add(
+				txtest::createCreditPaymentTx(networkID, mCarol, mBob, mAsset, cseq++, small, &fee));
     }
 
     // Provoke sortForHash and hash-caching:
@@ -332,10 +402,10 @@ HistoryTests::generateRandomLedger()
                                  .getCurr()
                                  ->getHash());
 
-    mRootBalances.push_back(txtest::getAccountBalance(mRoot, app));
-    mAliceBalances.push_back(txtest::getAccountBalance(mAlice, app));
-    mBobBalances.push_back(txtest::getAccountBalance(mBob, app));
-    mCarolBalances.push_back(txtest::getAccountBalance(mCarol, app));
+    mRootBalances.push_back(getLineBalance(mRoot, mAsset, app));
+    mAliceBalances.push_back(getLineBalance(mAlice, mAsset, app));
+    mBobBalances.push_back(getLineBalance(mBob, mAsset, app));
+    mCarolBalances.push_back(getLineBalance(mCarol, mAsset, app));
 
     mRootSeqs.push_back(txtest::getAccountSeqNum(mRoot, app));
     mAliceSeqs.push_back(txtest::getAccountSeqNum(mAlice, app));
@@ -357,6 +427,7 @@ HistoryTests::generateAndPublishHistory(size_t nPublishes)
         uint64_t queueCount = hm.getPublishQueueCount();
         while (hm.getPublishQueueCount() == queueCount)
         {
+			CLOG(INFO, "History") << "Closing ledger " << lm.getCurrentLedgerHeader().ledgerSeq;
             generateRandomLedger();
             ++ledgerSeq;
         }
@@ -574,10 +645,12 @@ HistoryTests::catchupApplication(uint32_t initLedger,
     auto haveBobSeq = mBobSeqs.at(i);
     auto haveCarolSeq = mCarolSeqs.at(i);
 
-    auto wantRootBalance = txtest::getAccountBalance(mRoot, *app2);
-    auto wantAliceBalance = txtest::getAccountBalance(mAlice, *app2);
-    auto wantBobBalance = txtest::getAccountBalance(mBob, *app2);
-    auto wantCarolBalance = txtest::getAccountBalance(mCarol, *app2);
+	auto asset = txtest::makeAsset(mRoot, "USD");
+
+    auto wantRootBalance = getLineBalance(mRoot, asset, *app2);
+    auto wantAliceBalance = getLineBalance(mAlice, asset, *app2);
+    auto wantBobBalance = getLineBalance(mBob, asset, *app2);
+    auto wantCarolBalance = getLineBalance(mCarol, asset, *app2);
 
     auto wantRootSeq = txtest::getAccountSeqNum(mRoot, *app2);
     auto wantAliceSeq = txtest::getAccountSeqNum(mAlice, *app2);
@@ -600,7 +673,7 @@ HistoryTests::catchupApplication(uint32_t initLedger,
 
 TEST_CASE_METHOD(HistoryTests, "History publish", "[history]")
 {
-    generateAndPublishInitialHistory(1);
+	generateAndPublishInitialHistory(1);
 }
 
 static std::string
