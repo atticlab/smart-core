@@ -720,7 +720,7 @@ void Config::parseAnonAssets(std::shared_ptr<cpptoml::toml_group> rawAssets) {
 			asset.alphaNum12().issuer = issuer;
 			break;
 		default:
-			std::string err = "Unknown asset type within[ANONYMOUS_ASSETS." + rawAsset.first + "]";
+			std::string err = "Unknown 'type' within[ANONYMOUS_ASSETS." + rawAsset.first + "]";
 			throw std::invalid_argument(err);
 		}
 		if (!isAssetValid(asset)) {
