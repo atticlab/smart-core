@@ -81,7 +81,50 @@ TEST_CASE("payment", "[tx][payment]")
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
+	SECTION("payment") 
+	{
+		auto newAccount = getAccount("newAccount");
+		OperationFee fee;
+		fee.type(OperationFeeType::opFEE_CHARGED);
+		fee.fee().amountToCharge = paymentAmount / 2;
+		fee.fee().asset = idrCur;
+		SECTION("invalid asset")
+		{
+			auto a1Asset = makeAsset(a1, "AAA");
+			fee.fee().asset = a1Asset;
+			applyCreditPaymentTx(app, a1, newAccount, a1Asset, a1Seq++, paymentAmount, &fee, PAYMENT_MALFORMED);
+		}
+		// create an account
+		applyCreateAccountTx(app, root, b1, rootSeq++, 0);
+		applyChangeTrust(app, a1, root, a1Seq++, "IDR", INT64_MAX);
+		applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++, paymentAmount);
+		auto b1Seq = getAccountSeqNum(b1, app) + 1;
+		applyChangeTrust(app, b1, root, b1Seq++, "IDR", INT64_MAX);
 
+		SECTION("underfunded")
+		{
+			applyCreditPaymentTx(app, a1, b1, idrCur, a1Seq++, paymentAmount*2, nullptr, PAYMENT_UNDERFUNDED);
+		}
+		SECTION("PAYMENT_SRC_NO_TRUST") 
+		{
+			applyChangeTrust(app, b1, root, b1Seq++, "USD", INT64_MAX);
+			applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, PAYMENT_SRC_NO_TRUST);
+		}
+		SECTION("PAYMENT_NO_DESTINATION")
+		{
+			applyCreditPaymentTx(app, a1, newAccount, idrCur, a1Seq++, paymentAmount, nullptr, PAYMENT_NO_DESTINATION);
+		}
+		SECTION("PAYMENT_NO_TRUST")
+		{
+			applyCreateAccountTx(app, root, newAccount, rootSeq++, 0);
+			applyCreditPaymentTx(app, a1, newAccount, idrCur, a1Seq++, paymentAmount, nullptr, PAYMENT_NO_TRUST);
+		}
+		SECTION("PAYMENT_LINE_FULL")
+		{
+			applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++, INT64_MAX, &fee, PAYMENT_LINE_FULL);
+		}
+		
+	}
     SECTION("Create account")
     {
         SECTION("Success")
@@ -124,6 +167,13 @@ TEST_CASE("payment", "[tx][payment]")
 
         applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++,
                              trustLineStartingBalance, nullptr, PAYMENT_NOT_AUTHORIZED);
+		SECTION("anonymous asset") {
+			auto anonAccount = getAccount("anonAccount");
+			Asset aUAH = makeAsset(root, "AUAH");
+			REQUIRE(app.isAnonymous(aUAH));
+			applyCreditPaymentTx(app, root, anonAccount, aUAH, rootSeq++,
+				trustLineStartingBalance, nullptr, PAYMENT_NOT_AUTHORIZED);
+		}
 
         applyAllowTrust(app, root, a1, rootSeq++, "IDR", true);
 
@@ -413,7 +463,7 @@ TEST_CASE("payment", "[tx][payment]")
 				applyCheck(payment, delta, app);
 				REQUIRE(payment->getResultCode() == txINTERNAL_ERROR);
 			}
-			SECTION("too many fee") {
+			SECTION("Fee is too big") {
 				auto paymentFrame = createCreditPaymentTx(app.getNetworkID(), a1, b1, usdCur, a1Seq++, paymentAmount);
 				TransactionEnvelope env = paymentFrame->getEnvelope();
 				OperationFee fee;
@@ -485,6 +535,29 @@ TEST_CASE("payment", "[tx][payment]")
 
 				auto commLine = loadTrustLine(commissionSeed, idrCur, app);
 				REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
+			}
+			SECTION("success anonymous payment") {
+				auto anonUser = getAccount("anonUser");
+				auto aUAH = makeAsset(root, "AUAH");
+				REQUIRE(app.isAnonymous(aUAH));
+				auto oldBalance = 0;
+				OperationFee fee;
+				fee.type(OperationFeeType::opFEE_CHARGED);
+				fee.fee().amountToCharge = paymentAmount / 2;
+				fee.fee().asset = aUAH;
+				applyCreditPaymentTx(app, root, anonUser, aUAH, rootSeq++, paymentAmount, &fee);
+
+				auto anonAccount = loadAccount(anonUser, app);
+				REQUIRE(anonAccount->getAccount().accountType == ACCOUNT_ANONYMOUS_USER);
+
+				auto anonLine = loadTrustLine(anonUser, aUAH, app);
+				REQUIRE(anonLine->getBalance() == paymentAmount - fee.fee().amountToCharge);
+
+				auto commLine = loadTrustLine(commissionSeed, aUAH, app);
+				REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
+
+				auto anonSeq = getAccountSeqNum(anonUser, app) + 1;
+				applyCreditPaymentTx(app, anonUser, root, aUAH, anonSeq++, paymentAmount - fee.fee().amountToCharge, nullptr);
 			}
 		}
 	}

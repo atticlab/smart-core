@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include "xdr/Stellar-types.h"
+#include "xdr/Stellar-ledger-entries.h"
 
 namespace asio
 {
@@ -244,6 +245,7 @@ class Application
     virtual Hash const& getNetworkID() const = 0;
 
 	virtual PublicKey const& getIssuer() const = 0;
+	virtual bool isAnonymous(Asset const& asset) const = 0;
 
     virtual void newDB() = 0;
 

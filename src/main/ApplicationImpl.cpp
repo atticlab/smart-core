@@ -198,6 +198,15 @@ ApplicationImpl::getIssuer() const
 	return mConfig.BANK_MASTER_KEY;
 }
 
+bool 
+ApplicationImpl::isAnonymous(Asset const& asset) const {
+	for (auto const& anon : mConfig.ANONYMOUS_ASSETS) {
+		if (anon == asset)
+			return true;
+	}
+	return false;
+}
+
 ApplicationImpl::~ApplicationImpl()
 {
     LOG(INFO) << "Application destructing";

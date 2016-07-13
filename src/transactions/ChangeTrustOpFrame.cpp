@@ -28,13 +28,13 @@ ChangeTrustOpFrame::doApply(Application& app,
     auto tlI = TrustFrame::loadTrustLineIssuer(getSourceID(), mChangeTrust.line,
                                                db, delta);
 
-    auto& trustLine = tlI.first;
+	mTrustLine = tlI.first;
     auto& issuer = tlI.second;
 
-    if (trustLine)
+    if (mTrustLine)
     { // we are modifying an old trustline
 
-        if (mChangeTrust.limit < trustLine->getBalance())
+        if (mChangeTrust.limit < mTrustLine->getBalance())
         { // Can't drop the limit below the balance you are holding with them
             app.getMetrics().NewMeter({"op-change-trust", "failure", "invalid-limit"},
                              "operation").Mark();
@@ -45,7 +45,7 @@ ChangeTrustOpFrame::doApply(Application& app,
         if (mChangeTrust.limit == 0)
         {
             // line gets deleted
-            trustLine->storeDelete(delta, db);
+			mTrustLine->storeDelete(delta, db);
             mSourceAccount->addNumEntries(-1, ledgerManager);
             mSourceAccount->storeChange(delta, db);
         }
@@ -58,8 +58,8 @@ ChangeTrustOpFrame::doApply(Application& app,
                 innerResult().code(CHANGE_TRUST_NO_ISSUER);
                 return false;
             }
-            trustLine->getTrustLine().limit = mChangeTrust.limit;
-            trustLine->storeChange(delta, db);
+			mTrustLine->getTrustLine().limit = mChangeTrust.limit;
+			mTrustLine->storeChange(delta, db);
         }
         app.getMetrics().NewMeter({"op-change-trust", "success", "apply"}, "operation")
             .Mark();
@@ -82,13 +82,13 @@ ChangeTrustOpFrame::doApply(Application& app,
             innerResult().code(CHANGE_TRUST_NO_ISSUER);
             return false;
         }
-        trustLine = std::make_shared<TrustFrame>();
-        auto& tl = trustLine->getTrustLine();
+		mTrustLine = std::make_shared<TrustFrame>();
+        auto& tl = mTrustLine->getTrustLine();
         tl.accountID = getSourceID();
         tl.asset = mChangeTrust.line;
         tl.limit = mChangeTrust.limit;
         tl.balance = 0;
-        trustLine->setAuthorized(!issuer->isAuthRequired());
+		mTrustLine->setAuthorized(!issuer->isAuthRequired());
 
         if (!mSourceAccount->addNumEntries(1, ledgerManager))
         {
@@ -99,7 +99,7 @@ ChangeTrustOpFrame::doApply(Application& app,
         }
 
         mSourceAccount->storeChange(delta, db);
-        trustLine->storeAdd(delta, db);
+		mTrustLine->storeAdd(delta, db);
 
         app.getMetrics().NewMeter({"op-change-trust", "success", "apply"}, "operation")
             .Mark();

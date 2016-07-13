@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <unordered_set>
 #include "crypto/SecretKey.h"
 #include "lib/util/cpptoml.h"
 
@@ -25,6 +26,7 @@ class Config : public std::enable_shared_from_this<Config>
     void parseNodeID(std::string configStr, PublicKey& retKey);
     void parseNodeID(std::string configStr, PublicKey& retKey, SecretKey& sKey,
                      bool isSeed);
+	void parseAnonAssets(std::shared_ptr<cpptoml::toml_group> rawAssets);
 
   public:
     typedef std::shared_ptr<Config> pointer;
@@ -41,6 +43,9 @@ class Config : public std::enable_shared_from_this<Config>
     };
 
     // application config
+	
+	// vector of anonymous assets
+	std::vector<Asset> ANONYMOUS_ASSETS;
     
     // The bank public key - the single emission source in the system
     PublicKey BANK_MASTER_KEY;

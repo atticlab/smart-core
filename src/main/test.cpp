@@ -10,6 +10,7 @@
 #include <time.h>
 #include "util/Logging.h"
 #include "util/TmpDir.h"
+#include "util/types.h"
 #include "crypto/SHA.h"
 
 #ifdef _WIN32
@@ -98,6 +99,11 @@ getTestConfig(int instanceNumber, Config::TestDbMode mode)
 
 		auto root = SecretKey::fromSeed(sha256(thisConfig.NETWORK_PASSPHRASE));
 		thisConfig.BANK_MASTER_KEY = root.getPublicKey();
+		Asset anonUAH;
+		anonUAH.type(ASSET_TYPE_CREDIT_ALPHANUM4);
+		strToAssetCode(anonUAH.alphaNum4().assetCode, "AUAH");
+		anonUAH.alphaNum4().issuer = thisConfig.BANK_MASTER_KEY;
+		thisConfig.ANONYMOUS_ASSETS.push_back(anonUAH);
 
         std::ostringstream dbname;
         switch (mode)

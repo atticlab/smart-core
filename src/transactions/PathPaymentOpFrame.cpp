@@ -4,6 +4,8 @@
 
 #include "util/asio.h"
 #include "transactions/PathPaymentOpFrame.h"
+#include "transactions/CreateAccountOpFrame.h"
+#include "transactions/ChangeTrustOpFrame.h"
 #include "util/Logging.h"
 #include "ledger/LedgerDelta.h"
 #include "ledger/OfferFrame.h"
@@ -60,6 +62,111 @@ TrustFrame::pointer PathPaymentOpFrame::getCommissionDest(LedgerManager const& l
 	return commissionDestLine;
 }
 
+AccountFrame::pointer
+PathPaymentOpFrame::createDestination(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta) {
+	// build a createAccountOp
+	Operation op;
+	op.sourceAccount = mOperation.sourceAccount;
+	op.body.type(CREATE_ACCOUNT);
+	CreateAccountOp& caOp = op.body.createAccountOp();
+	caOp.destination = mPathPayment.destination;
+	caOp.accountType = ACCOUNT_ANONYMOUS_USER;
+
+	OperationResult opRes;
+	opRes.code(opINNER);
+	opRes.tr().type(CREATE_ACCOUNT);
+
+	//no need to take fee twice
+	OperationFee fee;
+	fee.type(OperationFeeType::opFEE_NONE);
+
+	CreateAccountOpFrame createAccount(op, opRes, &fee, mParentTx);
+	createAccount.setSourceAccountPtr(mSourceAccount);
+
+	// create account
+	if (!createAccount.doCheckValid(app) ||
+		!createAccount.doApply(app, delta, ledgerManager))
+	{
+		if (createAccount.getResultCode() != opINNER)
+		{
+			throw std::runtime_error("Unexpected error code from createAccount");
+		}
+		switch (CreateAccountOpFrame::getInnerCode(createAccount.getResult()))
+		{
+		case CREATE_ACCOUNT_UNDERFUNDED:
+		case CREATE_ACCOUNT_LOW_RESERVE:
+		case CREATE_ACCOUNT_NOT_AUTHORIZED_TYPE:
+			return nullptr;
+		case CREATE_ACCOUNT_MALFORMED:
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "malformed-create-account-op" },
+				"operation").Mark();
+			throw std::runtime_error("Failed to create account - create account op is malformed");
+		case CREATE_ACCOUNT_ALREADY_EXIST:
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "already-exists-create-account-op" },
+				"operation").Mark();
+			throw std::runtime_error("Failed to create account - already exists");
+		case CREATE_ACCOUNT_WRONG_TYPE:
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "wrong-type-create-account-op" },
+				"operation").Mark();
+			throw std::runtime_error("Failed to create account - wrong type");
+		default:
+			throw std::runtime_error("Unexpected error code from createAccount");
+		}
+	}
+	return createAccount.getDestAccount();
+}
+
+TrustFrame::pointer 
+PathPaymentOpFrame::createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, AccountFrame::pointer account,
+	Asset const& asset)
+{
+	// build a changeTrustOp
+	Operation op;
+	op.sourceAccount.activate() = account->getID();
+	op.body.type(CHANGE_TRUST);
+	ChangeTrustOp& caOp = op.body.changeTrustOp();
+	caOp.limit = INT64_MAX;
+	caOp.line = asset;
+
+	OperationResult opRes;
+	opRes.code(opINNER);
+	opRes.tr().type(CHANGE_TRUST);
+
+	//no need to take fee twice
+	OperationFee fee;
+	fee.type(OperationFeeType::opFEE_NONE);
+
+	ChangeTrustOpFrame changeTrust(op, opRes, &fee, mParentTx);
+	changeTrust.setSourceAccountPtr(account);
+
+	// create trust line
+	if (!changeTrust.doCheckValid(app) ||
+		!changeTrust.doApply(app, delta, ledgerManager))
+	{
+		if (changeTrust.getResultCode() != opINNER)
+		{
+			throw std::runtime_error("Unexpected error code from changeTrust");
+		}
+		switch (ChangeTrustOpFrame::getInnerCode(changeTrust.getResult()))
+		{
+		case CHANGE_TRUST_NO_ISSUER:
+		case CHANGE_TRUST_LOW_RESERVE:
+			return nullptr;
+		case CHANGE_TRUST_MALFORMED:
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "malformed-change-trust-op" },
+				"operation").Mark();
+			throw std::runtime_error("Failed to create trust line - change trust line op is malformed");
+		case CHANGE_TRUST_INVALID_LIMIT:
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "invalid-limit-change-trust-op" },
+				"operation").Mark();
+			throw std::runtime_error("Failed to create trust line - invalid limit");
+		default:
+			throw std::runtime_error("Unexpected error code from change trust line");
+		}
+	}
+	return changeTrust.getTrustLine();
+}
+
 bool
 PathPaymentOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
@@ -108,10 +215,27 @@ PathPaymentOpFrame::doApply(Application& app,
 
         if (!destination)
         {
-            app.getMetrics().NewMeter({"op-path-payment", "failure", "no-destination"},
-                             "operation").Mark();
-            innerResult().code(PATH_PAYMENT_NO_DESTINATION);
-            return false;
+			bool destinationCreated = false;
+
+			// if destination does not exists and asset is allowed of anonymous users - create one with trust line
+			if (app.isAnonymous(mPathPayment.destAsset))
+			{
+				destination = createDestination(app, ledgerManager, delta);
+				destinationCreated = !!destination;
+				// if destination was created and asset is not native - create trust line
+				if (destinationCreated && mPathPayment.destAsset.type() != ASSET_TYPE_NATIVE)
+				{
+					auto line = createTrustLine(app, ledgerManager, delta, destination, mPathPayment.destAsset);
+					destinationCreated = !!line;
+				}
+			}
+			if (!destinationCreated)
+			{
+				app.getMetrics().NewMeter({ "op-path-payment", "failure", "no-destination" },
+					"operation").Mark();
+				innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+				return false;
+			}
         }
     }
 

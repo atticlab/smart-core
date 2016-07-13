@@ -408,8 +408,7 @@ Config::load(std::string const& filename)
                     throw std::invalid_argument("invalid BANK_MASTER_KEY");
                 }
 
-                parseNodeID(item.second->as<std::string>()->value(),
-                            BANK_MASTER_KEY);
+				BANK_MASTER_KEY = PubKeyUtils::fromStrKey(item.second->as<std::string>()->value());
             }
             else if (item.first == "BANK_COMMISSION_KEY")
             {
@@ -417,9 +416,7 @@ Config::load(std::string const& filename)
                 {
                     throw std::invalid_argument("invalid BANK_COMMISSION_KEY");
                 }
-                
-                parseNodeID(item.second->as<std::string>()->value(),
-                            BANK_COMMISSION_KEY);
+				BANK_COMMISSION_KEY = PubKeyUtils::fromStrKey(item.second->as<std::string>()->value());
             }
             else if (item.first == "NODE_IS_VALIDATOR")
             {
@@ -533,6 +530,11 @@ Config::load(std::string const& filename)
                 MINIMUM_IDLE_PERCENT =
                     (uint32_t)item.second->as<int64_t>()->value();
             }
+			else if (item.first == "ANONYMOUS_ASSETS")
+			{
+				auto rawAssets = item.second->as_group();
+				parseAnonAssets(rawAssets);
+			}
             else if (item.first == "HISTORY")
             {
                 auto hist = item.second->as_group();
@@ -658,6 +660,74 @@ Config::load(std::string const& filename)
         err += ex.what();
         throw std::invalid_argument(err);
     }
+}
+
+void Config::parseAnonAssets(std::shared_ptr<cpptoml::toml_group> rawAssets) {
+	if (!rawAssets) {
+		return throw std::invalid_argument("incomplete ANONYMOUS_ASSETS block");
+	}
+	for (auto const& rawAsset : *rawAssets)
+	{
+		LOG(DEBUG) << "Anonumous asset: " << rawAsset.first;
+		auto assetData = rawAsset.second->as_group();
+		if (!assetData)
+		{
+			throw std::invalid_argument("malformed ANONYMOUS_ASSETS config block");
+		}
+		int64_t type = -1;
+		std::string code;
+		AccountID issuer;
+		for (auto const& c : *assetData)
+		{
+			if (c.first == "type")
+			{
+				type = c.second->as<std::int64_t>()->value();
+			}
+			else if (c.first == "code")
+			{
+				code = c.second->as<std::string>()->value();
+			}
+			else if (c.first == "issuer")
+			{
+				auto rawIssuer = c.second->as<std::string>()->value();
+				try {
+					issuer = PubKeyUtils::fromStrKey(rawIssuer);
+				}
+				catch (...) {
+					// will be handled further down
+				}
+			}
+			else
+			{
+				std::string err = "Unknown ANONYMOUS_ASSETS-table entry: '" + c.first + "', within [ANONYMOUS_ASSETS." + rawAsset.first + "]";
+				throw std::invalid_argument(err);
+			}
+		}
+		Asset asset;
+		std::string invalidAsset = "Invalid asset within[ANONYMOUS_ASSETS." + rawAsset.first + "]";
+		switch (type) {
+		case ASSET_TYPE_NATIVE:
+			asset.type(ASSET_TYPE_NATIVE);
+			break;
+		case ASSET_TYPE_CREDIT_ALPHANUM4:
+			asset.type(ASSET_TYPE_CREDIT_ALPHANUM4);
+			strToAssetCode(asset.alphaNum4().assetCode, code);
+			asset.alphaNum4().issuer = issuer;
+			break;
+		case ASSET_TYPE_CREDIT_ALPHANUM12:
+			asset.type(ASSET_TYPE_CREDIT_ALPHANUM12);
+			strToAssetCode(asset.alphaNum12().assetCode, code);
+			asset.alphaNum12().issuer = issuer;
+			break;
+		default:
+			std::string err = "Unknown asset type within[ANONYMOUS_ASSETS." + rawAsset.first + "]";
+			throw std::invalid_argument(err);
+		}
+		if (!isAssetValid(asset)) {
+			throw std::invalid_argument(invalidAsset);
+		}
+		ANONYMOUS_ASSETS.push_back(asset);
+	}
 }
 
 void

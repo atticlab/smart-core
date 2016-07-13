@@ -18,6 +18,8 @@ class CreateAccountOpFrame : public OperationFrame
     }
     CreateAccountOp const& mCreateAccount;
 
+	AccountFrame::pointer mDestAccount;
+
   public:
     CreateAccountOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                          TransactionFrame& parentTx);
@@ -25,6 +27,10 @@ class CreateAccountOpFrame : public OperationFrame
     bool doApply(Application& app, LedgerDelta& delta,
                  LedgerManager& ledgerManager) override;
     bool doCheckValid(Application& app) override;
+
+	AccountFrame::pointer getDestAccount() {
+		return mDestAccount;
+	}
 
     static CreateAccountResultCode
     getInnerCode(OperationResult const& res)

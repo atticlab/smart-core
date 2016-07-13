@@ -35,20 +35,19 @@ bool
 CreateAccountOpFrame::doApply(Application& app,
                               LedgerDelta& delta, LedgerManager& ledgerManager)
 {
-    AccountFrame::pointer destAccount;
+    
 
     Database& db = ledgerManager.getDatabase();
 
-    destAccount =
+    mDestAccount =
         AccountFrame::loadAccount(delta, mCreateAccount.destination, db);
-    if (!destAccount)
+    if (!mDestAccount)
     {
-        destAccount = make_shared<AccountFrame>(mCreateAccount.destination);
-        destAccount->getAccount().seqNum = 0;
-        destAccount->getAccount().accountType  = mCreateAccount.accountType;
-        //                delta.getHeaderFrame().getStartingSequenceNumber();
+		mDestAccount = make_shared<AccountFrame>(mCreateAccount.destination);
+		mDestAccount->getAccount().seqNum = 0;
+		mDestAccount->getAccount().accountType  = mCreateAccount.accountType;
         
-        destAccount->storeAdd(delta, db);
+		mDestAccount->storeAdd(delta, db);
         
         app.getMetrics().NewMeter({"op-create-account", "success", "apply"},
                                   "operation").Mark();
