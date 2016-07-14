@@ -24,6 +24,7 @@
 #include "transactions/InflationOpFrame.h"
 #include "transactions/MergeOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
+#include "transactions/AdministrativeOpFrame.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -903,6 +904,34 @@ applyManageData( Application& app,
             REQUIRE(dataFrame == nullptr);
         }
     } 
+}
+
+TransactionFramePtr createAdminOp(Hash const& networkID, SecretKey& source,
+	SecretKey& signer, std::string& data, SequenceNumber seq) 
+{
+	Operation op;
+	op.body.type(ADMINISTRATIVE);
+	op.body.adminOp().opData = data;
+	auto tx = transactionFromOperation(networkID, source, seq, op);
+	tx->getEnvelope().signatures.clear();
+	tx->addSignature(signer);
+	return tx;
+}
+
+void applyAdminOp(
+	Application& app, SecretKey& source,
+	SecretKey& signer, std::string& data, SequenceNumber seq,
+	AdministrativeResultCode targetResult)
+{
+	TransactionFramePtr txFrame =
+		createAdminOp(app.getNetworkID(), source, signer, data, seq);
+
+	LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
+		app.getDatabase());
+	applyCheck(txFrame, delta, app);
+
+	REQUIRE(AdministrativeOpFrame::getInnerCode(
+		txFrame->getResult().result.results()[0]) == targetResult);
 }
 
 

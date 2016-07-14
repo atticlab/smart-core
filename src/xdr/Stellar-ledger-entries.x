@@ -11,6 +11,7 @@ typedef PublicKey AccountID;
 typedef opaque Thresholds[4];
 typedef string string32<32>;
 typedef string string64<64>;
+typedef string longString<>;
 typedef uint64 SequenceNumber;
 typedef opaque DataValue<64>; 
 

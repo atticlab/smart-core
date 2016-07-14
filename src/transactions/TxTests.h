@@ -189,6 +189,16 @@ void applyManageData(
     DataValue* value,
     SequenceNumber seq, ManageDataResultCode targetResult = MANAGE_DATA_SUCCESS);
 
+TransactionFramePtr createAdminOp(Hash const& networkID, SecretKey& source,
+	SecretKey& signer, std::string& data, SequenceNumber seq);
+
+void applyAdminOp(
+	Application& app, SecretKey& source,
+	SecretKey& signer, std::string& data, SequenceNumber seq,
+	AdministrativeResultCode targetResult = ADMINISTRATIVE_SUCCESS);
+
+
+
 Asset makeAsset(SecretKey& issuer, std::string const& code);
 
 OperationFrame const& getFirstOperationFrame(TransactionFrame const& tx);

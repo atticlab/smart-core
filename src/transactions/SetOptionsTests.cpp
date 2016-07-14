@@ -41,8 +41,7 @@ TEST_CASE("set options", "[tx][setoptions]")
 
     SequenceNumber rootSeq = getAccountSeqNum(root, app) + 1;
 
-    applyCreateAccountTx(app, root, a1, rootSeq++,
-                         app.getLedgerManager().getMinBalance(0) + 1000);
+    applyCreateAccountTx(app, root, a1, rootSeq++, 0);
 
     SequenceNumber a1seq = getAccountSeqNum(a1, app) + 1;
 
@@ -58,24 +57,32 @@ TEST_CASE("set options", "[tx][setoptions]")
         th.medThreshold = make_optional<uint8_t>(10);
         th.highThreshold = make_optional<uint8_t>(100);
 
-        SECTION("insufficient balance")
-        {
-            applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr, &th,
-                            &sk1, nullptr, SET_OPTIONS_LOW_RESERVE);
-        }
-
         SECTION("can't use master key as alternate signer")
         {
             Signer sk(a1.getPublicKey(), 100, SIGNER_GENERAL);
             applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
                             nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER);
         }
-
+		SECTION("can't create emission signer if not bank")
+		{
+			auto b1 = getAccount("b1");
+			Signer sk(b1.getPublicKey(), 100, SIGNER_EMISSION);
+			applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
+				nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
+			applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
+				nullptr, &sk, nullptr);
+		}
+		SECTION("can't create admin signer if not bank")
+		{
+			auto b1 = getAccount("b1");
+			Signer sk(b1.getPublicKey(), 100, SIGNER_ADMIN);
+			applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
+				nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
+			applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
+				nullptr, &sk, nullptr);
+		}
         SECTION("multiple signers")
         {
-            // add some funds
-            applyPaymentTx(app, root, a1, rootSeq++,
-                           app.getLedgerManager().getMinBalance(2));
 
             applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr, &th,
                             &sk1, nullptr);

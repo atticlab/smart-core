@@ -21,6 +21,7 @@
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/SetOptionsOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
+#include "transactions/AdministrativeOpFrame.h"
 #include "database/Database.h"
 
 #include "medida/meter.h"
@@ -59,7 +60,9 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationF
         return shared_ptr<OperationFrame>(new InflationOpFrame(op, res, fee, tx));
     case MANAGE_DATA:
         return shared_ptr<OperationFrame>(new ManageDataOpFrame(op, res, fee, tx));
-
+	case ADMINISTRATIVE:
+		return shared_ptr<OperationFrame>(new AdministrativeOpFrame(op, res, fee, tx));
+			
     default:
         ostringstream err;
         err << "Unknown Tx type: " << op.body.type();
@@ -89,17 +92,13 @@ OperationFrame::apply(LedgerDelta& delta, Application& app)
 int32_t
 OperationFrame::getNeededThreshold() const
 {
-    return mSourceAccount->getMediumThreshold();
+	return mSourceAccount->getMediumThreshold();
 }
-    
-    bool OperationFrame::checkBankSigned(Application& app){
-        return mParentTx.checkSignatureAgainst(app.getConfig().BANK_MASTER_KEY);
-    }
 
 bool
-OperationFrame::checkSignature() const
+OperationFrame::checkSignature()
 {
-    return mParentTx.checkSignature(*mSourceAccount, getNeededThreshold());
+    return mParentTx.checkSignature(*mSourceAccount, getNeededThreshold(), &mUsedSigners);
 }
 
 AccountID const&
@@ -169,4 +168,6 @@ OperationFrame::checkValid(Application& app, LedgerDelta* delta)
 
     return doCheckValid(app);
 }
+
+
 }

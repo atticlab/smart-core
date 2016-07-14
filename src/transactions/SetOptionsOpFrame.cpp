@@ -270,14 +270,21 @@ SetOptionsOpFrame::doCheckValid(Application& app)
                 break;
             case SIGNER_EMISSION:
             case SIGNER_ADMIN:
-                if (!(getSourceID() == app.getConfig().BANK_MASTER_KEY && checkBankSigned(app)))
-                {
-                    app.getMetrics().NewMeter({"op-set-options", "invalid", "bad-signer-type"},
-                                              "operation").Mark();
-                    innerResult().code(SET_OPTIONS_BAD_SIGNER_TYPE);
-                    return false;
-                }
-                break;
+			{
+				auto bankKey = app.getConfig().BANK_MASTER_KEY;
+				if (getSourceID() == bankKey)
+				{
+					bool isBank = false;
+					for (auto& signer : mUsedSigners)
+					{
+						if (signer.pubKey == bankKey)
+							isBank = true;
+							break;
+					}
+					if (isBank)
+						break;
+				}
+			}
             default:
                 app.getMetrics().NewMeter({"op-set-options", "invalid", "bad-signer-type"},
                                           "operation").Mark();

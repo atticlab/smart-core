@@ -127,7 +127,7 @@ TransactionFrame::addSignature(SecretKey const& secretKey)
 }
 
 bool
-TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight)
+TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight, vector<Signer>* usedSigners)
 {
     vector<Signer> keyWeights;
     if (account.getAccount().thresholds[0])
@@ -136,6 +136,9 @@ TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight)
 
     keyWeights.insert(keyWeights.end(), account.getAccount().signers.begin(),
                       account.getAccount().signers.end());
+
+	if (usedSigners != nullptr)
+		usedSigners->clear();
 
     Hash const& contentsHash = getContentsHash();
 
@@ -152,6 +155,9 @@ TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight)
                 PubKeyUtils::verifySig((*it).pubKey, sig.signature,
                                        contentsHash))
             {
+				if (usedSigners != nullptr) {
+					usedSigners->push_back(*it);
+				}
                 mUsedSignatures[i] = true;
                 totalWeight += (*it).weight;
                 if (totalWeight >= neededWeight)
@@ -165,18 +171,6 @@ TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight)
 
     return false;
 }
-
-    bool TransactionFrame::checkSignatureAgainst(const PublicKey publicKey){
-        Hash const& contentsHash = getContentsHash();
-        for (size_t i = 0; i < getEnvelope().signatures.size(); i++)
-        {
-            auto const& sig = getEnvelope().signatures[i];
-            if (PubKeyUtils::hasHint(publicKey, sig.hint) &&
-                PubKeyUtils::verifySig(publicKey, sig.signature,contentsHash))
-                return true;
-        }
-        return false;
-    }
 
 AccountFrame::pointer
 TransactionFrame::loadAccount(LedgerDelta* delta, Database& db,
@@ -317,7 +311,7 @@ TransactionFrame::commonValid(Application& app, LedgerDelta* delta,
         }
     }
 
-    if (!checkSignature(*mSigningAccount, mSigningAccount->getLowThreshold()))
+    if (!checkSignature(*mSigningAccount, mSigningAccount->getLowThreshold(), nullptr))
     {
         app.getMetrics()
             .NewMeter({"transaction", "invalid", "bad-auth"}, "transaction")

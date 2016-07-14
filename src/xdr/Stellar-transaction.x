@@ -25,7 +25,8 @@ enum OperationType
     ALLOW_TRUST = 7,
     ACCOUNT_MERGE = 8,
     INFLATION = 9,
-    MANAGE_DATA = 10
+    MANAGE_DATA = 10,
+	ADMINISTRATIVE = 11
 };
 
 /* CreateAccount
@@ -221,6 +222,11 @@ struct ManageDataOp
     DataValue* dataValue;   // set to null to clear
 };
 
+struct AdministrativeOp
+{
+	longString opData;
+};
+
 /* An operation is the lowest unit of work that a transaction does */
 struct Operation
 {
@@ -253,6 +259,8 @@ struct Operation
         void;
     case MANAGE_DATA:
         ManageDataOp manageDataOp;
+	case ADMINISTRATIVE:
+		AdministrativeOp adminOp;
     }
     body;
 };
@@ -662,6 +670,25 @@ default:
     void;
 };
 
+/******* Administrative Result ********/
+enum AdministrativeResultCode
+{
+    // codes considered as "success" for the operation
+    ADMINISTRATIVE_SUCCESS = 0, // op was applied
+
+    // codes considered as "failure" for the operation
+    ADMINISTRATIVE_MALFORMED = -1,   // invalid operation
+    ADMINISTRATIVE_NOT_AUTHORIZED = -2 //not enough rights to perform
+};
+
+union AdministrativeResult switch (AdministrativeResultCode code)
+{
+case ADMINISTRATIVE_SUCCESS:
+    void;
+default:
+    void;
+};
+
 /* High level Operation Result */
 
 enum OperationResultCode
@@ -699,6 +726,8 @@ case opINNER:
         InflationResult inflationResult;
     case MANAGE_DATA:
         ManageDataResult manageDataResult;
+	case ADMINISTRATIVE:
+		AdministrativeResult adminResult;
     }
     tr;
 default:
