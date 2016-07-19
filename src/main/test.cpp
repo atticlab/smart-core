@@ -103,7 +103,6 @@ getTestConfig(int instanceNumber, Config::TestDbMode mode)
 		anonUAH.type(ASSET_TYPE_CREDIT_ALPHANUM4);
 		strToAssetCode(anonUAH.alphaNum4().assetCode, "AUAH");
 		anonUAH.alphaNum4().issuer = thisConfig.BANK_MASTER_KEY;
-		thisConfig.ANONYMOUS_ASSETS.push_back(anonUAH);
 
         std::ostringstream dbname;
         switch (mode)

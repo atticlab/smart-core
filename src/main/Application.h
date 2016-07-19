@@ -245,7 +245,6 @@ class Application
     virtual Hash const& getNetworkID() const = 0;
 
 	virtual PublicKey const& getIssuer() const = 0;
-	virtual bool isAnonymous(Asset const& asset) const = 0;
 
     virtual void newDB() = 0;
 

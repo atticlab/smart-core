@@ -110,10 +110,6 @@ TEST_CASE("payment", "[tx][payment]")
 			applyChangeTrust(app, b1, root, b1Seq++, "USD", INT64_MAX);
 			applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, PAYMENT_SRC_NO_TRUST);
 		}
-		SECTION("PAYMENT_NO_DESTINATION")
-		{
-			applyCreditPaymentTx(app, a1, newAccount, idrCur, a1Seq++, paymentAmount, nullptr, PAYMENT_NO_DESTINATION);
-		}
 		SECTION("PAYMENT_NO_TRUST")
 		{
 			applyCreateAccountTx(app, root, newAccount, rootSeq++, 0);
@@ -167,13 +163,6 @@ TEST_CASE("payment", "[tx][payment]")
 
         applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++,
                              trustLineStartingBalance, nullptr, PAYMENT_NOT_AUTHORIZED);
-		SECTION("anonymous asset") {
-			auto anonAccount = getAccount("anonAccount");
-			Asset aUAH = makeAsset(root, "AUAH");
-			REQUIRE(app.isAnonymous(aUAH));
-			applyCreditPaymentTx(app, root, anonAccount, aUAH, rootSeq++,
-				trustLineStartingBalance, nullptr, PAYMENT_NOT_AUTHORIZED);
-		}
 
         applyAllowTrust(app, root, a1, rootSeq++, "IDR", true);
 
@@ -536,10 +525,9 @@ TEST_CASE("payment", "[tx][payment]")
 				auto commLine = loadTrustLine(commissionSeed, idrCur, app);
 				REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
 			}
-			SECTION("success anonymous payment") {
+			SECTION("success account creation") {
 				auto anonUser = getAccount("anonUser");
 				auto aUAH = makeAsset(root, "AUAH");
-				REQUIRE(app.isAnonymous(aUAH));
 				auto oldBalance = 0;
 				OperationFee fee;
 				fee.type(OperationFeeType::opFEE_CHARGED);

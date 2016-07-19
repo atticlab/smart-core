@@ -215,19 +215,13 @@ PathPaymentOpFrame::doApply(Application& app,
 
         if (!destination)
         {
-			bool destinationCreated = false;
-
-			// if destination does not exists and asset is allowed of anonymous users - create one with trust line
-			if (app.isAnonymous(mPathPayment.destAsset))
+			destination = createDestination(app, ledgerManager, delta);
+			bool destinationCreated = !!destination;
+			// if destination was created and asset is not native - create trust line
+			if (destinationCreated && mPathPayment.destAsset.type() != ASSET_TYPE_NATIVE)
 			{
-				destination = createDestination(app, ledgerManager, delta);
-				destinationCreated = !!destination;
-				// if destination was created and asset is not native - create trust line
-				if (destinationCreated && mPathPayment.destAsset.type() != ASSET_TYPE_NATIVE)
-				{
-					auto line = createTrustLine(app, ledgerManager, delta, destination, mPathPayment.destAsset);
-					destinationCreated = !!line;
-				}
+				auto line = createTrustLine(app, ledgerManager, delta, destination, mPathPayment.destAsset);
+				destinationCreated = !!line;
 			}
 			if (!destinationCreated)
 			{
