@@ -78,12 +78,62 @@ MergeOpFrame::doApply(Application& app, LedgerDelta& delta,
 }
 
 bool
+MergeOpFrame::checkValid(Application& app, LedgerDelta* delta)
+{   
+    bool forApply = (delta != nullptr);
+    if (!loadAccount(delta, app.getDatabase()))
+    {
+        if (forApply || !mOperation.sourceAccount)
+        {
+            app.getMetrics()
+                .NewMeter({"operation", "invalid", "no-account"}, "operation")
+                .Mark();
+            mResult.code(opNO_ACCOUNT);
+            return false;
+        }
+        else
+        {
+            mSourceAccount =
+                AccountFrame::makeAuthOnlyAccount(*mOperation.sourceAccount);
+        }
+    }
+
+    if (!(checkBankSigned(app)))
+    {
+        app.getMetrics()
+            .NewMeter({"operation", "invalid", "bad-auth"}, "operation")
+            .Mark();
+        mResult.code(opBAD_AUTH);
+        return false;
+    }
+
+    if (!forApply)
+    {
+        // safety: operations should not rely on ledger state as
+        // previous operations may change it (can even create the account)
+        mSourceAccount.reset();
+    }
+
+    mResult.code(opINNER);
+    mResult.tr().type(mOperation.body.type());
+
+    return doCheckValid(app);
+}
+
+bool
 MergeOpFrame::doCheckValid(Application& app)
 {
     // makes sure not merging into self
-    if (getSourceID() == mOperation.body.destination())
+    if (*mOperation.sourceAccount == mOperation.body.destination())
     {
         app.getMetrics().NewMeter({"op-merge", "invalid", "malformed-self-merge"},
+                         "operation").Mark();
+        innerResult().code(ACCOUNT_MERGE_MALFORMED);
+        return false;
+    }
+    if (*mOperation.sourceAccount == app.getConfig().BANK_MASTER_KEY)
+    {
+        app.getMetrics().NewMeter({"op-merge", "invalid", "bank-account-merge"},
                          "operation").Mark();
         innerResult().code(ACCOUNT_MERGE_MALFORMED);
         return false;

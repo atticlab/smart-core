@@ -77,7 +77,7 @@ class OperationFrame
     }
     OperationResultCode getResultCode() const;
 
-    bool checkValid(Application& app, LedgerDelta* delta = nullptr);
+    virtual bool checkValid(Application& app, LedgerDelta* delta = nullptr);
 
     bool apply(LedgerDelta& delta, Application& app);
 

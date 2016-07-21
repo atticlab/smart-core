@@ -25,7 +25,7 @@ class MergeOpFrame : public OperationFrame
     bool doApply(Application& app, LedgerDelta& delta,
                  LedgerManager& ledgerManager) override;
     bool doCheckValid(Application& app) override;
-
+    bool checkValid(Application& app, LedgerDelta* delta = nullptr) override;
     static AccountMergeResultCode
     getInnerCode(OperationResult const& res)
     {
