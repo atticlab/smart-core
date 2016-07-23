@@ -123,6 +123,13 @@ MergeOpFrame::checkValid(Application& app, LedgerDelta* delta)
 bool
 MergeOpFrame::doCheckValid(Application& app)
 {
+    if (!mOperation.sourceAccount)
+    {
+        app.getMetrics().NewMeter({"op-merge", "invalid", "malformed-self-merge"},
+                         "operation").Mark();
+        innerResult().code(ACCOUNT_MERGE_MALFORMED);
+        return false;
+    }
     // makes sure not merging into self
     if (*mOperation.sourceAccount == mOperation.body.destination())
     {

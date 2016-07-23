@@ -26,6 +26,11 @@ class MergeOpFrame : public OperationFrame
                  LedgerManager& ledgerManager) override;
     bool doCheckValid(Application& app) override;
     bool checkValid(Application& app, LedgerDelta* delta = nullptr) override;
+    void
+    setSourceAccountPtr(AccountFrame::pointer sa)
+    {
+        mSourceAccount = sa;
+    }
     static AccountMergeResultCode
     getInnerCode(OperationResult const& res)
     {
