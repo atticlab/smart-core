@@ -13,6 +13,8 @@
 #include "util/Logging.h"
 #include "TxTests.h"
 #include "ledger/LedgerDelta.h"
+#include "crypto/SHA.h"
+#include "crypto/SecretKey.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -60,12 +62,17 @@ TEST_CASE("merge", "[tx][merge]")
 
     SECTION("merge into self")
     {
-        applyAccountMerge(app, a1, a1, a1_seq++, ACCOUNT_MERGE_MALFORMED);
+        applyAccountMerge(app, root, a1, a1, root_seq++, ACCOUNT_MERGE_MALFORMED);
     }
+    SECTION("merge bank")
+    {
+        applyAccountMerge(app, root, root, a1, root_seq++, ACCOUNT_MERGE_MALFORMED);
+    }
+
 
     SECTION("merge into non existent account")
     {
-        applyAccountMerge(app, a1, b1, a1_seq++, ACCOUNT_MERGE_NO_ACCOUNT);
+        applyAccountMerge(app, root ,a1, b1, root_seq++, ACCOUNT_MERGE_NO_ACCOUNT);
     }
 
     applyCreateAccountTx(app, root, b1, root_seq++, minBalance);
@@ -82,46 +89,47 @@ TEST_CASE("merge", "[tx][merge]")
         applySetOptions(app, a1, a1_seq++, nullptr, &flags, nullptr, nullptr,
                         nullptr, nullptr);
 
-        applyAccountMerge(app, a1, b1, a1_seq++, ACCOUNT_MERGE_IMMUTABLE_SET);
+        applyAccountMerge(app, root, a1, b1, root_seq++, ACCOUNT_MERGE_IMMUTABLE_SET);
     }
 
     SECTION("With sub entries")
     {
-        Asset usdCur = makeAsset(gateway, "USD");
-        applyChangeTrust(app, a1, gateway, a1_seq++, "USD", trustLineLimit);
+        Asset usdCur = makeAsset(root, "USD");
+        applyChangeTrust(app, a1, root, a1_seq++, "USD", trustLineLimit);
 
         SECTION("account has trust line")
         {
-            applyAccountMerge(app, a1, b1, a1_seq++,
+            applyAccountMerge(app, root, a1, b1, root_seq++,
                               ACCOUNT_MERGE_HAS_SUB_ENTRIES);
         }
+        //TODO test when offers are implemented 
         SECTION("account has offer")
         {
-            applyCreditPaymentTx(app, gateway, a1, usdCur, gw_seq++,
+            applyCreditPaymentTx(app, root, a1, usdCur, root_seq++,
                                  trustLineBalance);
-            Asset xlmCur;
-            xlmCur.type(AssetType::ASSET_TYPE_NATIVE);
+            Asset eurCur = makeAsset(root, "EUR");
+            applyChangeTrust(app, a1, root, a1_seq++, "EUR", trustLineLimit);
 
             const Price somePrice(3, 2);
             for (int i = 0; i < 4; i++)
             {
-                applyCreateOffer(app, delta, 0, a1, xlmCur, usdCur, somePrice,
+                applyCreateOffer(app, delta, 0, a1, usdCur, eurCur, somePrice,
                                  100 * assetMultiplier, a1_seq++);
             }
             // empty out balance
-            applyCreditPaymentTx(app, a1, gateway, usdCur, a1_seq++,
+            applyCreditPaymentTx(app, a1, root, usdCur, a1_seq++,
                                  trustLineBalance);
             // delete the trust line
-            applyChangeTrust(app, a1, gateway, a1_seq++, "USD", 0);
+            applyChangeTrust(app, a1, root, a1_seq++, "USD", 0);
 
-            applyAccountMerge(app, a1, b1, a1_seq++,
+            applyAccountMerge(app, root, a1, b1, root_seq++,
                               ACCOUNT_MERGE_HAS_SUB_ENTRIES);
         }
 
         SECTION("account has data")
         {
             // delete the trust line
-            applyChangeTrust(app, a1, gateway, a1_seq++, "USD", 0);
+            applyChangeTrust(app, a1, root, a1_seq++, "USD", 0);
 
             DataValue value;
             value.resize(20);
@@ -133,7 +141,7 @@ TEST_CASE("merge", "[tx][merge]")
             std::string t1("test");
 
             applyManageData(app, a1, t1, &value, a1_seq++);
-            applyAccountMerge(app, a1, b1, a1_seq++,
+            applyAccountMerge(app, root, a1, b1, root_seq++,
                 ACCOUNT_MERGE_HAS_SUB_ENTRIES);
         }
     }
@@ -142,33 +150,9 @@ TEST_CASE("merge", "[tx][merge]")
     {
         SECTION("success - basic")
         {
-            applyAccountMerge(app, a1, b1, a1_seq++);
+            applyAccountMerge(app, root, a1, b1, root_seq++);
             REQUIRE(!AccountFrame::loadAccount(a1.getPublicKey(),
                                                app.getDatabase()));
-        }
-        SECTION("success, invalidates dependent tx")
-        {
-            auto tx1 = createAccountMerge(app.getNetworkID(), a1, b1, a1_seq++);
-            auto tx2 =
-                createPaymentTx(app.getNetworkID(), a1, root, a1_seq++, 100);
-            TxSetFramePtr txSet = std::make_shared<TxSetFrame>(
-                app.getLedgerManager().getLastClosedLedgerHeader().hash);
-            txSet->add(tx1);
-            txSet->add(tx2);
-            txSet->sortForHash();
-            REQUIRE(txSet->checkValid(app));
-            int64 a1Balance = getAccountBalance(a1, app);
-            int64 b1Balance = getAccountBalance(b1, app);
-            auto r = closeLedgerOn(app, 3, 1, 1, 2015, txSet);
-            checkTx(0, r, txSUCCESS);
-            checkTx(1, r, txNO_ACCOUNT);
-
-            REQUIRE(!AccountFrame::loadAccount(a1.getPublicKey(),
-                                               app.getDatabase()));
-
-            int64 expectedB1Balance =
-                a1Balance + b1Balance - 2 * app.getLedgerManager().getTxFee();
-            REQUIRE(expectedB1Balance == getAccountBalance(b1, app));
         }
     }
 }
