@@ -529,6 +529,7 @@ HistoryManagerImpl::takeSnapshotAndPublish(HistoryArchiveState const& has)
 size_t
 HistoryManagerImpl::publishQueuedHistory()
 {
+    CLOG(TRACE, "History") << "Started publishQueuedHistory";
     std::string state;
 
     auto prep = mApp.getDatabase().getPreparedStatement(

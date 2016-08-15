@@ -215,6 +215,7 @@ BucketManagerImpl::getBucketByHash(uint256 const& hash)
 void
 BucketManagerImpl::forgetUnreferencedBuckets()
 {
+    CLOG(TRACE, "Bucket") << "starting forgetUnreferencedBuckets()";
 
     std::lock_guard<std::recursive_mutex> lock(mBucketMutex);
     std::set<Hash> referenced;
@@ -228,6 +229,7 @@ BucketManagerImpl::forgetUnreferencedBuckets()
             referenced.insert(hexToBin256(h));
         }
     }
+    CLOG(TRACE, "Bucket") << "forgetUnreferencedBuckets reference count: " << referenced.size();
 
     // Implicitly retain any buckets that are referenced by a state in
     // the publish queue.
