@@ -553,6 +553,7 @@ HistoryManagerImpl::publishQueuedHistory()
 std::vector<HistoryArchiveState>
 HistoryManagerImpl::getPublishQueueStates()
 {
+    CLOG(TRACE, "History") << "starting getPublishQueueStates()";
     std::vector<HistoryArchiveState> states;
     std::string state;
     auto prep = mApp.getDatabase().getPreparedStatement(
@@ -561,19 +562,24 @@ HistoryManagerImpl::getPublishQueueStates()
     st.exchange(soci::into(state));
     st.define_and_bind();
     st.execute(true);
+    CLOG(TRACE, "History") << "getPublishQueueStates statement executed";
+    
     while (st.got_data())
     {
         states.emplace_back();
         states.back().fromString(state);
         st.fetch();
     }
+    CLOG(TRACE, "History") << "getPublishQueueStates got_data executed";
     return states;
 }
 
 std::vector<std::string>
 HistoryManagerImpl::getBucketsReferencedByPublishQueue()
 {
+    CLOG(TRACE, "History") << "starting getBucketsReferencedByPublishQueue()";
     auto states = getPublishQueueStates();
+    CLOG(TRACE, "History") << "got getPublishQueueStates. states.size: " << states.size();
     std::set<std::string> buckets;
     for (auto const& s : states)
     {
