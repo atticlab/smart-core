@@ -42,10 +42,6 @@ class LoadGenerator
 
     // Subset of accounts that have issued credit in some asset.
     std::vector<AccountInfoPtr> mGateways;
-
-    // Subset of accounts that have made offers to trade in some credits.
-    std::vector<AccountInfoPtr> mMarketMakers;
-
     std::unique_ptr<VirtualTimer> mLoadTimer;
     int64 mMinBalance;
     uint64_t mLastSecond;
@@ -70,19 +66,12 @@ class LoadGenerator
     bool loadAccount(Application& app, AccountInfoPtr account);
     bool loadAccounts(Application& app, std::vector<AccountInfoPtr> accounts);
 
-    TxInfo createTransferNativeTransaction(AccountInfoPtr from,
-                                           AccountInfoPtr to, int64_t amount);
-
     TxInfo
     createTransferCreditTransaction(AccountInfoPtr from, AccountInfoPtr to,
-                                    int64_t amount,
-                                    std::vector<AccountInfoPtr> const& path);
-
+                                    int64_t amount);
+    
     AccountInfoPtr pickRandomAccount(AccountInfoPtr tryToAvoid,
                                      uint32_t ledgerNum);
-
-    AccountInfoPtr pickRandomPath(AccountInfoPtr from, uint32_t ledgerNum,
-                                  std::vector<AccountInfoPtr>& path);
 
     TxInfo createRandomTransaction(float alpha, uint32_t ledgerNum = 0);
     std::vector<TxInfo> createRandomTransactions(size_t n, float paretoAlpha);
@@ -104,7 +93,7 @@ class LoadGenerator
         SecretKey mKey;
         int64_t mBalance;
         SequenceNumber mSeq;
-        uint32_t mLastChangedLedger;
+        uint32_t mLastChangedLedger = 0;
 
         void establishTrust(AccountInfoPtr a);
         bool canUseInLedger(uint32_t currentLedger);
@@ -117,15 +106,8 @@ class LoadGenerator
         // buying and selling it.
         std::string mIssuedAsset;
         std::vector<AccountInfoPtr> mTrustingAccounts;
-        std::vector<AccountInfoPtr> mBuyingAccounts;
-        std::vector<AccountInfoPtr> mSellingAccounts;
-
-        // Live offers, for accounts that are market makers.
-        AccountInfoPtr mBuyCredit;
-        AccountInfoPtr mSellCredit;
-
         void createDirectly(Application& app);
-        void debitDirectly(Application& app, int64_t debitAmount);
+        
         TxInfo creationTransaction();
 
       private:
@@ -136,19 +118,13 @@ class LoadGenerator
     {
         medida::Meter& mAccountCreated;
         medida::Meter& mTrustlineCreated;
-        medida::Meter& mOfferCreated;
         medida::Meter& mPayment;
-        medida::Meter& mNativePayment;
         medida::Meter& mCreditPayment;
-        medida::Meter& mOneOfferPathPayment;
-        medida::Meter& mTwoOfferPathPayment;
-        medida::Meter& mManyOfferPathPayment;
         medida::Meter& mTxnAttempted;
         medida::Meter& mTxnRejected;
         medida::Meter& mTxnBytes;
 
         medida::Counter& mGateways;
-        medida::Counter& mMarketMakers;
 
         TxMetrics(medida::MetricsRegistry& m);
         void report();
@@ -161,11 +137,10 @@ class LoadGenerator
         enum
         {
             TX_CREATE_ACCOUNT,
-            TX_TRANSFER_NATIVE,
             TX_TRANSFER_CREDIT
         } mType;
         int64_t mAmount;
-        std::vector<AccountInfoPtr> mPath;
+        AccountInfoPtr mBank;
 
         void touchAccounts(uint32_t ledger);
         bool execute(Application& app);

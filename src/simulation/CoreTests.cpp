@@ -298,6 +298,7 @@ TEST_CASE("Stress test on 2 nodes 3 accounts 10 random transactions 10tx/sec",
     catch (...)
     {
         auto problems = simulation->accountsOutOfSyncWithDb();
+        LOG(INFO) << "HAVE SOME PROBLEMS: " << problems[0];
         REQUIRE(problems.empty());
     }
 

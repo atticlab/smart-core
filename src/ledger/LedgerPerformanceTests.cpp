@@ -81,7 +81,7 @@ class LedgerPerformanceTests : public Simulation
             rand_fraction() * min(static_cast<int64_t>(1000),
                                   (from->mBalance - mMinBalance) / 3));
         txs.push_back(make_optional<TxInfo>(
-            createTransferNativeTransaction(from, to, amount)));
+            createTransferCreditTransaction(from, to, amount)));
 
         vector<TxInfo> result;
         for (auto tx : txs)
