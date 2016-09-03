@@ -37,7 +37,7 @@ class Simulation : public LoadGenerator
 
     typedef std::shared_ptr<Simulation> pointer;
 
-    Simulation(Mode mode, Hash const& networkID,
+    Simulation(Mode mode, SecretKey const& bankSecretKey,
                std::function<Config()> confGen = nullptr);
     ~Simulation();
 

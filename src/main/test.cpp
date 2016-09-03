@@ -98,7 +98,8 @@ getTestConfig(int instanceNumber, Config::TestDbMode mode)
         thisConfig.NETWORK_PASSPHRASE = "(V) (;,,;) (V)";
 
 		auto root = SecretKey::fromSeed(sha256(thisConfig.NETWORK_PASSPHRASE));
-		thisConfig.BANK_MASTER_KEY = root.getPublicKey();
+        thisConfig.BANK_MASTER_SECRET_KEY = root;
+        thisConfig.BANK_MASTER_KEY = root.getPublicKey();
 		Asset anonUAH;
 		anonUAH.type(ASSET_TYPE_CREDIT_ALPHANUM4);
 		strToAssetCode(anonUAH.alphaNum4().assetCode, "AUAH");

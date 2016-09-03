@@ -561,9 +561,9 @@ TEST_CASE("SCP State", "[herder]")
     SecretKey nodeKeys[3];
     PublicKey nodeIDs[3];
 
-    Hash networkID = sha256(getTestConfig().NETWORK_PASSPHRASE);
+    SecretKey bankSecret = getTestConfig().BANK_MASTER_SECRET_KEY;
     Simulation::pointer sim =
-        std::make_shared<Simulation>(Simulation::OVER_LOOPBACK, networkID);
+        std::make_shared<Simulation>(Simulation::OVER_LOOPBACK, bankSecret);
 
     Config nodeCfgs[3];
 
@@ -625,7 +625,7 @@ TEST_CASE("SCP State", "[herder]")
         sim.reset();
 
         sim =
-            std::make_shared<Simulation>(Simulation::OVER_LOOPBACK, networkID);
+            std::make_shared<Simulation>(Simulation::OVER_LOOPBACK, bankSecret);
         clock = &sim->getClock();
 
         // start a new node that will switch to whatever node0 & node1 says

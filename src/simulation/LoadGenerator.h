@@ -26,7 +26,7 @@ class VirtualTimer;
 class LoadGenerator
 {
   public:
-    LoadGenerator(Hash const& networkID);
+    LoadGenerator(SecretKey const& bankSecretKey);
     ~LoadGenerator();
     void clear();
 

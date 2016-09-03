@@ -37,8 +37,8 @@ class LedgerPerformanceTests : public Simulation
 
     Application::pointer mApp;
 
-    LedgerPerformanceTests(Hash const& networkID)
-        : Simulation(Simulation::OVER_LOOPBACK, networkID)
+    LedgerPerformanceTests(SecretKey const& bankSecret)
+        : Simulation(Simulation::OVER_LOOPBACK, bankSecret)
     {
     }
 
@@ -155,8 +155,8 @@ TEST_CASE("ledger performance test", "[performance][hide]")
 
     auto cfg = getTestConfig(1);
 
-    Hash networkID = sha256(cfg.NETWORK_PASSPHRASE);
-    LedgerPerformanceTests sim(networkID);
+    SecretKey bankSecret = cfg.BANK_MASTER_SECRET_KEY;
+    LedgerPerformanceTests sim(bankSecret);
 
     SIMULATION_CREATE_NODE(10);
 

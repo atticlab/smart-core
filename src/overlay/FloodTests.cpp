@@ -52,9 +52,9 @@ TEST_CASE("Flooding", "[flood][overlay]")
 
         const int nbTx = 100;
 
-        SecretKey root = getRoot(networkID);
+        SecretKey bankSecret = getTestConfig().BANK_MASTER_SECRET_KEY;
         auto rootA =
-            AccountFrame::loadAccount(root.getPublicKey(), app0->getDatabase());
+            AccountFrame::loadAccount(bankSecret.getPublicKey(), app0->getDatabase());
 
         // directly create a bunch of accounts by cloning the root account (one
         // per tx so that we can easily identify them)
@@ -79,7 +79,7 @@ TEST_CASE("Flooding", "[flood][overlay]")
             }
         }
 
-        expectedSeq = getAccountSeqNum(root, *app0) + 1;
+        expectedSeq = getAccountSeqNum(bankSecret, *app0) + 1;
 
         // enough for connections to be made
         simulation->crankForAtLeast(std::chrono::seconds(1), false);
@@ -131,6 +131,7 @@ TEST_CASE("Flooding", "[flood][overlay]")
 
     SECTION("transaction flooding")
     {
+        SecretKey bankSecret = getTestConfig().BANK_MASTER_SECRET_KEY;
         auto injectTransaction = [&](int i)
         {
             const int64 txAmount = 10000000;
@@ -175,13 +176,13 @@ TEST_CASE("Flooding", "[flood][overlay]")
             SECTION("loopback")
             {
                 simulation = Topologies::core(
-                    4, .666f, Simulation::OVER_LOOPBACK, networkID, cfgGen);
+                    4, .666f, Simulation::OVER_LOOPBACK, bankSecret, cfgGen);
                 test(injectTransaction, ackedTransactions);
             }
             SECTION("tcp")
             {
                 simulation = Topologies::core(4, .666f, Simulation::OVER_TCP,
-                                              networkID, cfgGen);
+                                              bankSecret, cfgGen);
                 test(injectTransaction, ackedTransactions);
             }
         }
@@ -191,13 +192,13 @@ TEST_CASE("Flooding", "[flood][overlay]")
             SECTION("loopback")
             {
                 simulation = Topologies::hierarchicalQuorumSimplified(
-                    5, 10, Simulation::OVER_LOOPBACK, networkID, cfgGen);
+                    5, 10, Simulation::OVER_LOOPBACK, bankSecret, cfgGen);
                 test(injectTransaction, ackedTransactions);
             }
             SECTION("tcp")
             {
                 simulation = Topologies::hierarchicalQuorumSimplified(
-                    5, 10, Simulation::OVER_TCP, networkID, cfgGen);
+                    5, 10, Simulation::OVER_TCP, bankSecret, cfgGen);
                 test(injectTransaction, ackedTransactions);
             }
         }
@@ -208,7 +209,8 @@ TEST_CASE("Flooding", "[flood][overlay]")
         // SCP messages depend on
         // a quorum set
         // a valid transaction set
-
+        SecretKey bankSecret = getTestConfig().BANK_MASTER_SECRET_KEY;
+        
         auto injectSCP = [&](int i)
         {
             const int64 txAmount = 10000000;
@@ -300,13 +302,13 @@ TEST_CASE("Flooding", "[flood][overlay]")
             SECTION("loopback")
             {
                 simulation = Topologies::core(
-                    4, .666f, Simulation::OVER_LOOPBACK, networkID, cfgGen);
+                    4, .666f, Simulation::OVER_LOOPBACK, bankSecret, cfgGen);
                 test(injectSCP, ackedSCP);
             }
             SECTION("tcp")
             {
                 simulation = Topologies::core(4, .666f, Simulation::OVER_TCP,
-                                              networkID, cfgGen);
+                                              bankSecret, cfgGen);
                 test(injectSCP, ackedSCP);
             }
         }
@@ -316,13 +318,13 @@ TEST_CASE("Flooding", "[flood][overlay]")
             SECTION("loopback")
             {
                 simulation = Topologies::hierarchicalQuorumSimplified(
-                    5, 10, Simulation::OVER_LOOPBACK, networkID, cfgGen);
+                    5, 10, Simulation::OVER_LOOPBACK, bankSecret, cfgGen);
                 test(injectSCP, ackedSCP);
             }
             SECTION("tcp")
             {
                 simulation = Topologies::hierarchicalQuorumSimplified(
-                    5, 10, Simulation::OVER_TCP, networkID, cfgGen);
+                    5, 10, Simulation::OVER_TCP, bankSecret, cfgGen);
                 test(injectSCP, ackedSCP);
             }
         }

@@ -24,9 +24,9 @@ namespace stellar
 
 using namespace std;
 
-Simulation::Simulation(Mode mode, Hash const& networkID,
+Simulation::Simulation(Mode mode, SecretKey const& bankSecretKey,
                        std::function<Config()> confGen)
-    : LoadGenerator(networkID)
+    : LoadGenerator(bankSecretKey)
     , mClock(mode == OVER_TCP ? VirtualClock::REAL_TIME
                               : VirtualClock::VIRTUAL_TIME)
     , mMode(mode)
@@ -70,7 +70,7 @@ Simulation::addNode(SecretKey nodeKey, SCPQuorumSet qSet, VirtualClock& clock,
     cfg->RUN_STANDALONE = (mMode == OVER_LOOPBACK);
 
     Application::pointer result = Application::create(clock, *cfg, newDB);
-
+    
     NodeID nodeID = nodeKey.getPublicKey();
     mConfigs[nodeID] = cfg;
     mNodes[nodeID] = result;

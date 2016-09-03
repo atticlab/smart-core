@@ -13,40 +13,40 @@ class Topologies
 {
   public:
     static Simulation::pointer pair(Simulation::Mode mode,
-                                    Hash const& networkID,
+                                    SecretKey const& bankSecret,
                                     std::function<Config()> confGen = nullptr);
 
-    static Simulation::pointer cycle4(Hash const& networkID,
+    static Simulation::pointer cycle4(SecretKey const& bankSecret,
                                       std::function<Config()> confGen = nullptr);
 
     static Simulation::pointer core(int nNodes, float quorumThresoldFraction,
                                     Simulation::Mode mode,
-                                    Hash const& networkID,
+                                    SecretKey const& bankSecret,
                                     std::function<Config()> confGen = nullptr);
 
     static Simulation::pointer cycle(int nNodes, float quorumThresoldFraction,
                                     Simulation::Mode mode,
-                                    Hash const& networkID,
+                                    SecretKey const& bankSecret,
                                     std::function<Config()> confGen = nullptr);
 
     static Simulation::pointer branchedcycle(int nNodes, float quorumThresoldFraction,
                                              Simulation::Mode mode,
-                                             Hash const& networkID,
+                                             SecretKey const& bankSecret,
                                              std::function<Config()> confGen = nullptr);
 
     static Simulation::pointer separate(int nNodes, float quorumThresoldFraction,
                                         Simulation::Mode mode,
-                                        Hash const& networkID,
+                                        SecretKey const& bankSecret,
                                         std::function<Config()> confGen = nullptr);
 
 
     static Simulation::pointer
     hierarchicalQuorum(int nBranches, Simulation::Mode mode,
-                       Hash const& networkID,
+                       SecretKey const& bankSecret,
                        std::function<Config()> confGen = nullptr);
     static Simulation::pointer
     hierarchicalQuorumSimplified(int coreSize, int nbOuterNodes,
-                                 Simulation::Mode mode, Hash const& networkID,
+                                 Simulation::Mode mode, SecretKey const& bankSecret,
                                  std::function<Config()> confGen = nullptr);
 };
 }

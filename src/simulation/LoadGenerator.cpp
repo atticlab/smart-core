@@ -52,11 +52,11 @@ static const uint64_t LOADGEN_TRUSTLINE_LIMIT = 1000 * LOADGEN_ACCOUNT_BALANCE;
 // Units of load are is scheduled at 100ms intervals.
 const uint32_t LoadGenerator::STEP_MSECS = 100;
 
-LoadGenerator::LoadGenerator(Hash const& networkID)
+LoadGenerator::LoadGenerator(SecretKey const& bankSecretKey)
     : mMinBalance(0), mLastSecond(0)
 {
     // Root account
-    auto root = make_shared<AccountInfo>(0, txtest::getRoot(networkID),
+    auto root = make_shared<AccountInfo>(0, bankSecretKey,
                                          0, 0, 0, *this);
     root->mIssuedAsset = "EUAH";
     mGateways.push_back(root);
@@ -249,7 +249,7 @@ LoadGenerator::generateLoad(Application& app, uint32_t nAccounts, uint32_t nTxs,
             app.getMetrics().NewTimer({"loadgen", "step", "build"});
         auto& recvTimer =
             app.getMetrics().NewTimer({"loadgen", "step", "recv"});
-
+        
         uint32_t ledgerNum = app.getLedgerManager().getLedgerNum();
         vector<TxInfo> txs;
 
@@ -728,8 +728,6 @@ LoadGenerator::TxInfo::toTransactionFrames(
             e.tx.sourceAccount = mFrom->mKey.getPublicKey();
             signingAccounts.insert(mFrom);
             e.tx.seqNum = mFrom->mSeq + 1;
-
-
 
             // Add a CREATE_ACCOUNT op
             Operation createOp;
