@@ -526,6 +526,12 @@ LoadGenerator::pickRandomAccount(AccountInfoPtr tryToAvoid, uint32_t ledgerNum)
     while (i-- != 0)
     {
         auto n = rand_element(mAccounts);
+        
+        if (ledgerNum == 0 && n != tryToAvoid)
+        {
+            return n;
+        }
+        
         if (n->canUseInLedger(ledgerNum) && n != tryToAvoid)
         {
             return n;

@@ -100,7 +100,8 @@ getTestConfig(int instanceNumber, Config::TestDbMode mode)
 		auto root = SecretKey::fromSeed(sha256(thisConfig.NETWORK_PASSPHRASE));
         thisConfig.BANK_MASTER_SECRET_KEY = root;
         thisConfig.BANK_MASTER_KEY = root.getPublicKey();
-		Asset anonUAH;
+        thisConfig.HAS_BANK_SECRET = true;
+        Asset anonUAH;
 		anonUAH.type(ASSET_TYPE_CREDIT_ALPHANUM4);
 		strToAssetCode(anonUAH.alphaNum4().assetCode, "AUAH");
 		anonUAH.alphaNum4().issuer = thisConfig.BANK_MASTER_KEY;

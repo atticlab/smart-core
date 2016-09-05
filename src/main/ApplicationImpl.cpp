@@ -398,9 +398,8 @@ ApplicationImpl::getLoadGenerator()
 {
     if (!mLoadGenerator)
     {
-//TODO: Need to check BANK_MASTER_SECRET_KEY !== null
-//        if(!mConfig.BANK_MASTER_SECRET_KEY)
-//            throw std::runtime_error("Unable to get BANK_MASTER_SECRET_KEY");
+        if(!mConfig.HAS_BANK_SECRET)
+            throw std::runtime_error("Unable to get BANK_MASTER_SECRET_KEY");
         
         mLoadGenerator = make_unique<LoadGenerator>(mConfig.BANK_MASTER_SECRET_KEY);
     }

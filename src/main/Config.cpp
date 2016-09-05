@@ -32,6 +32,7 @@ using xdr::operator<;
     DESIRED_BASE_RESERVE = 0;
 
     // configurable
+    HAS_BANK_SECRET = false;
     RUN_STANDALONE = false;
     MANUAL_CLOSE = false;
     CATCHUP_COMPLETE = false;
@@ -407,7 +408,7 @@ Config::load(std::string const& filename)
                 {
                     throw std::invalid_argument("invalid BANK_MASTER_SECRET_KEY");
                 }
-
+                HAS_BANK_SECRET = true;
                 BANK_MASTER_SECRET_KEY = SecretKey::fromStrKeySeed(item.second->as<std::string>()->value());
             }
             else if (item.first == "BANK_MASTER_KEY")

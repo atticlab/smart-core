@@ -47,6 +47,8 @@ class Config : public std::enable_shared_from_this<Config>
 	// vector of anonymous assets
 	std::vector<Asset> ANONYMOUS_ASSETS;
     
+    bool HAS_BANK_SECRET;
+    
     SecretKey BANK_MASTER_SECRET_KEY;
     
     // The bank public key - the single emission source in the system
