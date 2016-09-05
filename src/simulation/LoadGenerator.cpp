@@ -582,7 +582,7 @@ LoadGenerator::TxInfo
 LoadGenerator::AccountInfo::creationTransaction()
 {
     return TxInfo{mLoadGen.mAccounts[0], shared_from_this(),
-                  TxInfo::TX_CREATE_ACCOUNT, LOADGEN_ACCOUNT_BALANCE};
+                  TxInfo::TX_CREATE_ACCOUNT, 0};
 }
 
 void

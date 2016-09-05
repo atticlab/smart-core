@@ -913,13 +913,13 @@ TEST_CASE("bucket apply", "[bucket]")
                          << " live entries";
     birth->apply(db);
     auto count = AccountFrame::countObjects(sess);
-    REQUIRE(count == live.size() + 1 /* root account */);
+    REQUIRE(count == live.size() + 2 /* BANK_MASTE & COMMISION accounts */);
 
     CLOG(INFO, "Bucket") << "Applying bucket with " << dead.size()
                          << " dead entries";
     death->apply(db);
     count = AccountFrame::countObjects(sess);
-    REQUIRE(count == 1);
+    REQUIRE(count == 2);
 }
 
 #ifdef USE_POSTGRES

@@ -417,7 +417,7 @@ Simulation::accountsOutOfSyncWithDb()
             if (accountFrame)
             {
                 offset = accountFrame->getBalance() -
-                         static_cast<int64_t>(account->mBalance);
+                         static_cast<int64_t>(0);
                 account->mSeq = accountFrame->getSeqNum();
             }
             else
@@ -426,7 +426,7 @@ Simulation::accountsOutOfSyncWithDb()
             }
             if (offset != 0)
             {
-                LOG(DEBUG) << "On node " << iApp << ", account " << account->mId
+                LOG(INFO) << "On node " << iApp << ", account " << account->mId
                            << " is off by " << (offset) << "\t(has "
                            << (accountFrame ? accountFrame->getBalance() : 0)
                            << " should have " << account->mBalance << ")";

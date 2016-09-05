@@ -64,7 +64,7 @@ TEST_CASE("ledgerheader", "[ledger]")
         auto const& lastHash = lcl.hash;
         TxSetFramePtr txSet = make_shared<TxSetFrame>(lastHash);
 
-        REQUIRE(lcl.header.baseFee == 100);
+        REQUIRE(lcl.header.baseFee == 0);
         REQUIRE(lcl.header.maxTxSetSize == 100);
 
 
