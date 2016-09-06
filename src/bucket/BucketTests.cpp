@@ -875,7 +875,7 @@ TEST_CASE("checkdb succeeding", "[bucket][checkdb]")
     {
         app->checkDB();
         app->getDatabase().getSession()
-            << ("UPDATE accounts SET balance = balance * 2"
+            << ("UPDATE trustlines SET balance = balance + 2"
                 " WHERE accountid = (SELECT accountid FROM accounts LIMIT 1);");
         REQUIRE_THROWS(clock.crank(false));
     }
