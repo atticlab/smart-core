@@ -74,6 +74,7 @@ CreateAccountOpFrame::doCheckValid(Application& app)
         case ACCOUNT_DISTRIBUTION_AGENT:
         case ACCOUNT_SETTLEMENT_AGENT:
         case ACCOUNT_EXCHANGE_AGENT:
+        case ACCOUNT_GENERAL_AGENT:
             if (getSourceID() == app.getConfig().BANK_MASTER_KEY){
                 break;
             }
