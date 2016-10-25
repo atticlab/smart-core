@@ -41,6 +41,15 @@ CreateAccountOpFrame::doApply(Application& app,
 
     mDestAccount =
         AccountFrame::loadAccount(delta, mCreateAccount.destination, db);
+
+    if (mCreateAccount.accountType == ACCOUNT_SCRATCH_CARD && mSourceAccount->getAccount().accountType != ACCOUNT_DISTRIBUTION_AGENT){
+        app.getMetrics().NewMeter({"op-create-scratchcard-account", "invalid",
+                                   "malformed-source-type"},
+                                  "operation").Mark();
+        innerResult().code(CREATE_ACCOUNT_WRONG_TYPE);
+        return false;
+    }
+
     if (!mDestAccount)
     {
 		mDestAccount = make_shared<AccountFrame>(mCreateAccount.destination);
@@ -68,6 +77,7 @@ CreateAccountOpFrame::doCheckValid(Application& app)
 {
     switch (mCreateAccount.accountType) {
         case ACCOUNT_ANONYMOUS_USER:
+        case ACCOUNT_SCRATCH_CARD:
             break;
         case ACCOUNT_REGISTERED_USER:
         case ACCOUNT_MERCHANT:
