@@ -38,10 +38,24 @@ Result: CreateAccountResult
 
 */
 
+struct ScratchCard 
+{
+	Asset asset;           // what they end up with
+    int64 amount;          // amount they end up with
+};
+
 struct CreateAccountOp
 {
     AccountID destination; // account to create
-    uint32 accountType; // amount they end up with
+    union switch (uint32 accountType)
+    {
+    case ACCOUNT_SCRATCH_CARD:
+        ScratchCard scratchCard;
+	default:
+		void;
+    }
+    body;
+
 };
 
 /* Payment
