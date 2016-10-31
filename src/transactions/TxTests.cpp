@@ -384,11 +384,17 @@ applyAllowTrust(Application& app, SecretKey& from, SecretKey& trustor,
 
 TransactionFramePtr
 createCreateAccountTx(Hash const& networkID, SecretKey& from, SecretKey& to,
-                      SequenceNumber seq, int64_t amount)
+                      SequenceNumber seq, int64_t amount, AccountType accountType, Asset* asset)
 {
     Operation op;
     op.body.type(CREATE_ACCOUNT);
     op.body.createAccountOp().destination = to.getPublicKey();
+	op.body.createAccountOp().body.accountType(accountType);
+	if (accountType == ACCOUNT_SCRATCH_CARD && asset != nullptr)
+	{
+		op.body.createAccountOp().body.scratchCard().amount = amount;
+		op.body.createAccountOp().body.scratchCard().asset = *asset;
+	}
 
     return transactionFromOperation(networkID, from, seq, op);
 }
@@ -396,7 +402,7 @@ createCreateAccountTx(Hash const& networkID, SecretKey& from, SecretKey& to,
 void
 applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
                      SequenceNumber seq, int64_t amount,
-                     CreateAccountResultCode result)
+                     CreateAccountResultCode result, AccountType accountType, Asset* asset)
 {
     TransactionFramePtr txFrame;
 
@@ -405,7 +411,7 @@ applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
 
     fromAccount = loadAccount(from, app);
 
-    txFrame = createCreateAccountTx(app.getNetworkID(), from, to, seq, amount);
+    txFrame = createCreateAccountTx(app.getNetworkID(), from, to, seq, amount, accountType, asset);
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());

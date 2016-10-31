@@ -22,7 +22,6 @@ class PathPaymentOpFrame : public OperationFrame
 	TrustFrame::pointer getCommissionDest(LedgerManager const& ledgerManager, LedgerDelta& delta, Database& db,
 		AccountFrame::pointer commissionDest, Asset& asset);
 	AccountFrame::pointer createDestination(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta);
-	TrustFrame::pointer createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, AccountFrame::pointer account, Asset const& asset);
 
   public:
     PathPaymentOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,

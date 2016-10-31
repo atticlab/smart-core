@@ -70,7 +70,7 @@ PathPaymentOpFrame::createDestination(Application& app, LedgerManager& ledgerMan
 	op.body.type(CREATE_ACCOUNT);
 	CreateAccountOp& caOp = op.body.createAccountOp();
 	caOp.destination = mPathPayment.destination;
-	caOp.accountType = ACCOUNT_ANONYMOUS_USER;
+	caOp.body.accountType(ACCOUNT_ANONYMOUS_USER);
 
 	OperationResult opRes;
 	opRes.code(opINNER);
@@ -114,57 +114,6 @@ PathPaymentOpFrame::createDestination(Application& app, LedgerManager& ledgerMan
 		}
 	}
 	return createAccount.getDestAccount();
-}
-
-TrustFrame::pointer 
-PathPaymentOpFrame::createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, AccountFrame::pointer account,
-	Asset const& asset)
-{
-	// build a changeTrustOp
-	Operation op;
-	op.sourceAccount.activate() = account->getID();
-	op.body.type(CHANGE_TRUST);
-	ChangeTrustOp& caOp = op.body.changeTrustOp();
-	caOp.limit = INT64_MAX;
-	caOp.line = asset;
-
-	OperationResult opRes;
-	opRes.code(opINNER);
-	opRes.tr().type(CHANGE_TRUST);
-
-	//no need to take fee twice
-	OperationFee fee;
-	fee.type(OperationFeeType::opFEE_NONE);
-
-	ChangeTrustOpFrame changeTrust(op, opRes, &fee, mParentTx);
-	changeTrust.setSourceAccountPtr(account);
-
-	// create trust line
-	if (!changeTrust.doCheckValid(app) ||
-		!changeTrust.doApply(app, delta, ledgerManager))
-	{
-		if (changeTrust.getResultCode() != opINNER)
-		{
-			throw std::runtime_error("Unexpected error code from changeTrust");
-		}
-		switch (ChangeTrustOpFrame::getInnerCode(changeTrust.getResult()))
-		{
-		case CHANGE_TRUST_NO_ISSUER:
-		case CHANGE_TRUST_LOW_RESERVE:
-			return nullptr;
-		case CHANGE_TRUST_MALFORMED:
-			app.getMetrics().NewMeter({ "op-path-payment", "failure", "malformed-change-trust-op" },
-				"operation").Mark();
-			throw std::runtime_error("Failed to create trust line - change trust line op is malformed");
-		case CHANGE_TRUST_INVALID_LIMIT:
-			app.getMetrics().NewMeter({ "op-path-payment", "failure", "invalid-limit-change-trust-op" },
-				"operation").Mark();
-			throw std::runtime_error("Failed to create trust line - invalid limit");
-		default:
-			throw std::runtime_error("Unexpected error code from change trust line");
-		}
-	}
-	return changeTrust.getTrustLine();
 }
 
 bool
@@ -220,7 +169,7 @@ PathPaymentOpFrame::doApply(Application& app,
 			// if destination was created and asset is not native - create trust line
 			if (destinationCreated && mPathPayment.destAsset.type() != ASSET_TYPE_NATIVE)
 			{
-				auto line = createTrustLine(app, ledgerManager, delta, destination, mPathPayment.destAsset);
+				auto line = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, destination, mPathPayment.destAsset);
 				destinationCreated = !!line;
 			}
 			if (!destinationCreated)
@@ -231,6 +180,14 @@ PathPaymentOpFrame::doApply(Application& app,
 				return false;
 			}
         }
+
+		if (destination->getAccount().accountType == ACCOUNT_SCRATCH_CARD)
+		{
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "destination-scratch-card" },
+				"operation").Mark();
+			innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+			return false;
+		}
     }
 
     // update last balance in the chain

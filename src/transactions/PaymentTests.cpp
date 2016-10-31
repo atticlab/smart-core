@@ -131,6 +131,53 @@ TEST_CASE("payment", "[tx][payment]")
                 applyCreateAccountTx(app, root, b1, rootSeq++, 0, CREATE_ACCOUNT_ALREADY_EXIST);
             }
         }
+		SECTION("Scratch card")
+		{
+			auto distr = getAccount("distr");
+			applyCreateAccountTx(app, root, distr, rootSeq++, 0, CREATE_ACCOUNT_SUCCESS, ACCOUNT_DISTRIBUTION_AGENT);
+			auto distrSeq = getAccountSeqNum(distr, app) + 1;
+			SECTION("Only can ACCOUNT_DISTRIBUTION_AGENT create account")
+			{
+				auto account = SecretKey::random();
+				applyCreateAccountTx(app, root, account, rootSeq++, 100, CREATE_ACCOUNT_WRONG_TYPE, ACCOUNT_SCRATCH_CARD, &usdCur);
+			}
+			SECTION("Invalid amount")
+			{
+				auto account = SecretKey::random();
+				applyCreateAccountTx(app, distr, account, distrSeq++, 0, CREATE_ACCOUNT_MALFORMED, ACCOUNT_SCRATCH_CARD);
+			}
+			SECTION("Invalid asset")
+			{
+				auto account = SecretKey::random();
+				auto invalidCur = makeAsset(distr, "USD");
+				applyCreateAccountTx(app, distr, account, distrSeq++, 100, CREATE_ACCOUNT_MALFORMED, ACCOUNT_SCRATCH_CARD, &invalidCur);
+			}
+			SECTION("Success")
+			{
+				int64 amount = 100000;
+				auto account = SecretKey::random();
+				applyCreateAccountTx(app, distr, account, distrSeq++, amount, CREATE_ACCOUNT_SUCCESS, ACCOUNT_SCRATCH_CARD, &usdCur);
+				auto loadedAccount = loadAccount(account, app);
+				REQUIRE(loadedAccount);
+				auto accountLine = loadTrustLine(account, usdCur, app, true);
+				REQUIRE(accountLine);
+				REQUIRE(accountLine->getBalance() == amount);
+				SECTION("Can't send more to scratch card")
+				{
+					applyCreditPaymentTx(app, root, account, usdCur, rootSeq++, 100, nullptr, PAYMENT_NO_DESTINATION);
+				}
+				SECTION("Can spend, can't deposit")
+				{
+					auto accountSeq = getAccountSeqNum(account, app) + 1;
+					applyCreditPaymentTx(app, account, root, usdCur, accountSeq++, amount / 2);
+					accountLine = loadTrustLine(account, usdCur, app, true);
+					REQUIRE(accountLine);
+					REQUIRE(accountLine->getBalance() == amount / 2);
+					// can't deposit
+					applyCreditPaymentTx(app, root, account, usdCur, rootSeq++, 100, nullptr, PAYMENT_NO_DESTINATION);
+				}
+			}
+		}
     }
 
     SECTION("issuer large amounts")

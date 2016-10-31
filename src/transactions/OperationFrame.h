@@ -7,6 +7,7 @@
 #include <memory>
 #include "ledger/LedgerManager.h"
 #include "ledger/AccountFrame.h"
+#include "ledger/TrustFrame.h"
 #include "overlay/StellarXDR.h"
 #include "util/types.h"
 
@@ -44,6 +45,8 @@ class OperationFrame
     static std::shared_ptr<OperationFrame>
     makeHelper(Operation const& op, OperationResult& res, OperationFee* fee,
                TransactionFrame& parentTx);
+	static TrustFrame::pointer
+		createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, TransactionFrame& parentTx, AccountFrame::pointer account, Asset const& asset);
 
     OperationFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                    TransactionFrame& parentTx);
@@ -80,6 +83,7 @@ class OperationFrame
     bool checkValid(Application& app, LedgerDelta* delta = nullptr);
 
     bool apply(LedgerDelta& delta, Application& app);
+
 
     Operation const&
     getOperation() const

@@ -92,12 +92,12 @@ void applyAllowTrust(Application& app, SecretKey& from, SecretKey& trustor,
 
 TransactionFramePtr createCreateAccountTx(Hash const& networkID,
                                           SecretKey& from, SecretKey& to,
-                                          SequenceNumber seq, int64_t amount);
+                                          SequenceNumber seq, int64_t amount, AccountType accountType = ACCOUNT_ANONYMOUS_USER, Asset* asset = nullptr);
 
 void
 applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
                      SequenceNumber seq, int64_t amount,
-                     CreateAccountResultCode result = CREATE_ACCOUNT_SUCCESS);
+                     CreateAccountResultCode result = CREATE_ACCOUNT_SUCCESS, AccountType accountType = ACCOUNT_ANONYMOUS_USER, Asset* asset = nullptr);
 
 TransactionFramePtr createPaymentTx(Hash const& networkID, SecretKey& from,
                                     SecretKey& to, SequenceNumber seq,

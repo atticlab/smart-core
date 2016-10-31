@@ -41,13 +41,32 @@ CreateAccountOpFrame::doApply(Application& app,
 
     mDestAccount =
         AccountFrame::loadAccount(delta, mCreateAccount.destination, db);
+
+    if (mCreateAccount.body.accountType() == ACCOUNT_SCRATCH_CARD && mSourceAccount->getAccount().accountType != ACCOUNT_DISTRIBUTION_AGENT){
+        app.getMetrics().NewMeter({"op-create-scratchcard-account", "invalid",
+                                   "malformed-source-type"},
+                                  "operation").Mark();
+        innerResult().code(CREATE_ACCOUNT_WRONG_TYPE);
+        return false;
+    }
+
     if (!mDestAccount)
     {
 		mDestAccount = make_shared<AccountFrame>(mCreateAccount.destination);
 		mDestAccount->getAccount().seqNum = 0;
-		mDestAccount->getAccount().accountType  = mCreateAccount.accountType;
-        
+		mDestAccount->getAccount().accountType  = mCreateAccount.body.accountType();
 		mDestAccount->storeAdd(delta, db);
+		if (mCreateAccount.body.accountType() == ACCOUNT_SCRATCH_CARD)
+		{
+			auto line = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, mDestAccount, mCreateAccount.body.scratchCard().asset);
+			if (!line->addBalance(mCreateAccount.body.scratchCard().amount))
+			{
+				app.getMetrics().NewMeter({ "op-create-scratch-card", "failure", "line-full" },"operation").Mark();
+				innerResult().code(CREATE_ACCOUNT_MALFORMED);
+				return false;
+			}
+			line->storeChange(delta, db);
+		}
         
         app.getMetrics().NewMeter({"op-create-account", "success", "apply"},
                                   "operation").Mark();
@@ -66,8 +85,26 @@ CreateAccountOpFrame::doApply(Application& app,
 bool
 CreateAccountOpFrame::doCheckValid(Application& app)
 {
-    switch (mCreateAccount.accountType) {
+    switch (mCreateAccount.body.accountType()) {
         case ACCOUNT_ANONYMOUS_USER:
+			break;
+        case ACCOUNT_SCRATCH_CARD:
+			if (mCreateAccount.body.scratchCard().amount <= 0) {
+				app.getMetrics().NewMeter({ "op-create-account", "invalid",
+					"malformed-scratch-card-amount" },
+					"operation").Mark();
+				innerResult().code(CREATE_ACCOUNT_MALFORMED);
+				return false;
+			}
+
+			if (!isAssetValid(app.getIssuer(), mCreateAccount.body.scratchCard().asset))
+			{
+				app.getMetrics().NewMeter({ "op-create-account", "invalid",
+					"malformed-scratch-card-invalid-asset" },
+					"operation").Mark();
+				innerResult().code(CREATE_ACCOUNT_MALFORMED);
+				return false;
+			}
             break;
         case ACCOUNT_REGISTERED_USER:
         case ACCOUNT_MERCHANT:
