@@ -18,6 +18,7 @@ class PathPaymentOpFrame : public OperationFrame
         return mResult.tr().pathPaymentResult();
     }
     PathPaymentOp const& mPathPayment;
+    bool mIsCreate;
 
 	TrustFrame::pointer getCommissionDest(LedgerManager const& ledgerManager, LedgerDelta& delta, Database& db,
 		AccountFrame::pointer commissionDest, Asset& asset);
@@ -25,7 +26,7 @@ class PathPaymentOpFrame : public OperationFrame
 
   public:
     PathPaymentOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
-                       TransactionFrame& parentTx);
+                       TransactionFrame& parentTx, bool isCreate = false);
 
     bool doApply(Application& app, LedgerDelta& delta,
                  LedgerManager& ledgerManager) override;

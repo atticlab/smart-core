@@ -88,7 +88,7 @@ ChangeTrustOpFrame::doApply(Application& app,
         tl.asset = mChangeTrust.line;
         tl.limit = mChangeTrust.limit;
         tl.balance = 0;
-		mTrustLine->setAuthorized(!issuer->isAuthRequired());
+		mTrustLine->setAuthorized(!issuer->isAuthRequired() || tl.accountID == getIssuer(tl.asset));
 
         if (!mSourceAccount->addNumEntries(1, ledgerManager))
         {

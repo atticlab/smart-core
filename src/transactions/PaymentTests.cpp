@@ -98,6 +98,18 @@ TEST_CASE("payment", "[tx][payment]")
 		applyCreateAccountTx(app, root, b1, rootSeq++, 0);
 		applyChangeTrust(app, a1, root, a1Seq++, "IDR", INT64_MAX);
 		applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++, paymentAmount);
+        
+        SECTION("balance confirmations")
+        {
+            TrustFrame::pointer line;
+            line = loadTrustLine(a1, idrCur, app);
+            REQUIRE(line->getBalance() == paymentAmount);
+            
+            line = loadTrustLine(root, idrCur, app);
+            REQUIRE(line->getBalance() == -paymentAmount);
+            
+        }
+        
 		auto b1Seq = getAccountSeqNum(b1, app) + 1;
 		applyChangeTrust(app, b1, root, b1Seq++, "IDR", INT64_MAX);
 
@@ -156,6 +168,8 @@ TEST_CASE("payment", "[tx][payment]")
 			{
 				int64 amount = 100000;
 				auto account = SecretKey::random();
+                applyChangeTrust(app, distr, root, distrSeq++, "USD", INT64_MAX);
+                applyCreditPaymentTx(app, root, distr, usdCur, rootSeq++, 200+amount);
 				applyCreateAccountTx(app, distr, account, distrSeq++, amount, CREATE_ACCOUNT_SUCCESS, ACCOUNT_SCRATCH_CARD, &usdCur);
 				auto loadedAccount = loadAccount(account, app);
 				REQUIRE(loadedAccount);
@@ -197,7 +211,7 @@ TEST_CASE("payment", "[tx][payment]")
         std::vector<TrustFrame::pointer> gwLines;
         TrustFrame::loadLines(root.getPublicKey(), gwLines,
                               app.getDatabase());
-        REQUIRE(gwLines.size() == 0);
+        REQUIRE(gwLines.size() == 1);
     }
     SECTION("authorize flag")
     {

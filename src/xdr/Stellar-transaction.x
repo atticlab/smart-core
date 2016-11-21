@@ -410,7 +410,9 @@ enum CreateAccountResultCode
         -3, // would create an account below the min reserve
     CREATE_ACCOUNT_ALREADY_EXIST = -4, // account already exists
     CREATE_ACCOUNT_NOT_AUTHORIZED_TYPE = -5,
-    CREATE_ACCOUNT_WRONG_TYPE = -6
+    CREATE_ACCOUNT_WRONG_TYPE = -6,
+    CREATE_ACCOUNT_LINE_FULL = -7,
+    CREATE_ACCOUNT_NO_ISSUER = -8
 };
 
 union CreateAccountResult switch (CreateAccountResultCode code)

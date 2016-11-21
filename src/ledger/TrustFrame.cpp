@@ -24,8 +24,8 @@ const char* TrustFrame::kSQLCreateStatement1 =
     "assettype    INT             NOT NULL,"
     "issuer       VARCHAR(56)     NOT NULL,"
     "assetcode    VARCHAR(12)     NOT NULL,"
-    "tlimit       BIGINT          NOT NULL CHECK (tlimit > 0),"
-    "balance      BIGINT          NOT NULL CHECK (balance >= 0),"
+    "tlimit       BIGINT          NOT NULL,"
+    "balance      BIGINT          NOT NULL,"
     "flags        INT             NOT NULL,"
     "lastmodified INT             NOT NULL,"
     "PRIMARY KEY  (accountid, issuer, assetcode)"
@@ -77,10 +77,6 @@ TrustFrame::getKeyFields(LedgerKey const& key, std::string& actIDStrKey,
             PubKeyUtils::toStrKey(key.trustLine().asset.alphaNum12().issuer);
         assetCodeToStr(key.trustLine().asset.alphaNum12().assetCode, assetCode);
     }
-
-    if (actIDStrKey == issuerStrKey)
-        throw std::runtime_error("Issuer's own trustline should not be used "
-                                 "outside of OperationFrame");
 }
 
 int64_t
@@ -112,10 +108,6 @@ TrustFrame::setAuthorized(bool authorized)
 bool
 TrustFrame::addBalance(int64_t delta)
 {
-    if (mIsIssuer)
-    {
-        return true;
-    }
     if (delta == 0)
     {
         return true;
@@ -128,7 +120,7 @@ TrustFrame::addBalance(int64_t delta)
     {
         return false;
     }
-    if ((delta + mTrustLine.balance) < 0)
+    if ((delta + mTrustLine.balance) < 0 && !(mTrustLine.accountID == getIssuer(mTrustLine.asset)))
     {
         return false;
     }
@@ -140,11 +132,7 @@ int64_t
 TrustFrame::getMaxAmountReceive() const
 {
     int64_t amount = 0;
-    if (mIsIssuer)
-    {
-        amount = INT64_MAX;
-    }
-    else if (isAuthorized())
+    if (isAuthorized())
     {
         amount = mTrustLine.limit - mTrustLine.balance;
     }
@@ -156,7 +144,7 @@ TrustFrame::isValid(TrustLineEntry const& tl)
 {
     bool res = tl.asset.type() != ASSET_TYPE_NATIVE;
     res = res && isAssetValid(tl.asset);
-    res = res && (tl.balance >= 0);
+    res = res && ((tl.balance >= 0)||tl.accountID == getIssuer(tl.asset));
     res = res && (tl.limit > 0);
     res = res && (tl.balance <= tl.limit);
     return res;
@@ -343,13 +331,6 @@ TrustFrame::loadTrustLine(AccountID const& accountID, Asset const& asset,
     if (asset.type() == ASSET_TYPE_NATIVE)
     {
         throw std::runtime_error("XLM TrustLine?");
-    }
-    else
-    {
-        if (accountID == getIssuer(asset))
-        {
-            return createIssuerFrame(asset);
-        }
     }
 
     LedgerKey key;

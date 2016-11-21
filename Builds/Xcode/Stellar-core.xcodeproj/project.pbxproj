@@ -128,6 +128,8 @@
 		7F63A97F1C68C06A009B81D3 /* BitsetEnumerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A97C1C68C06A009B81D3 /* BitsetEnumerator.cpp */; };
 		7F63A9801C68C06A009B81D3 /* BitsetEnumeratorTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A97E1C68C06A009B81D3 /* BitsetEnumeratorTests.cpp */; };
 		7F63A9821C68C0A1009B81D3 /* FloodTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A9811C68C0A1009B81D3 /* FloodTests.cpp */; };
+		7FC9BA371DB68B1A0017FE74 /* AdministrativeOpFrame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FC9BA341DB68B1A0017FE74 /* AdministrativeOpFrame.cpp */; };
+		7FC9BA381DB68B1A0017FE74 /* AdministrativeOpTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FC9BA361DB68B1A0017FE74 /* AdministrativeOpTests.cpp */; };
 		CE08845C1C6275B900D14032 /* LedgerDeltaTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE08845A1C6275B900D14032 /* LedgerDeltaTests.cpp */; };
 		CE4F195E1C5F710C0069F558 /* libsodium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE4F195D1C5F710C0069F558 /* libsodium.a */; };
 		CEF05EDA1C4A79220050C900 /* HistoryWork.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEF05ED61C4A79220050C900 /* HistoryWork.cpp */; };
@@ -499,6 +501,9 @@
 		7F63A97D1C68C06A009B81D3 /* BitsetEnumerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BitsetEnumerator.h; sourceTree = "<group>"; };
 		7F63A97E1C68C06A009B81D3 /* BitsetEnumeratorTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BitsetEnumeratorTests.cpp; sourceTree = "<group>"; };
 		7F63A9811C68C0A1009B81D3 /* FloodTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FloodTests.cpp; sourceTree = "<group>"; };
+		7FC9BA341DB68B1A0017FE74 /* AdministrativeOpFrame.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AdministrativeOpFrame.cpp; sourceTree = "<group>"; };
+		7FC9BA351DB68B1A0017FE74 /* AdministrativeOpFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AdministrativeOpFrame.h; sourceTree = "<group>"; };
+		7FC9BA361DB68B1A0017FE74 /* AdministrativeOpTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AdministrativeOpTests.cpp; sourceTree = "<group>"; };
 		CE08845A1C6275B900D14032 /* LedgerDeltaTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LedgerDeltaTests.cpp; sourceTree = "<group>"; };
 		CE4F195D1C5F710C0069F558 /* libsodium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libsodium.a; path = ../../../../../../usr/local/Cellar/libsodium/1.0.6/lib/libsodium.a; sourceTree = "<group>"; };
 		CEF05ED61C4A79220050C900 /* HistoryWork.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = HistoryWork.cpp; sourceTree = "<group>"; };
@@ -930,6 +935,9 @@
 		7F3D4EB71BD91DF300B914B6 /* transactions */ = {
 			isa = PBXGroup;
 			children = (
+				7FC9BA341DB68B1A0017FE74 /* AdministrativeOpFrame.cpp */,
+				7FC9BA351DB68B1A0017FE74 /* AdministrativeOpFrame.h */,
+				7FC9BA361DB68B1A0017FE74 /* AdministrativeOpTests.cpp */,
 				7F4A4E141C96FA6C009D5F33 /* ChangeTrustTests.cpp */,
 				7F4A4E151C96FA6C009D5F33 /* InflationTests.cpp */,
 				7F4A4E161C96FA6C009D5F33 /* ManageDataOpFrame.cpp */,
@@ -1244,6 +1252,7 @@
 				7F3D4F461BDA4C7200B914B6 /* OfferFrame.cpp in Sources */,
 				7F3D4F391BDA4C5900B914B6 /* HistoryManagerImpl.cpp in Sources */,
 				7F3D4F491BDA4C9100B914B6 /* ApplicationImpl.cpp in Sources */,
+				7FC9BA381DB68B1A0017FE74 /* AdministrativeOpTests.cpp in Sources */,
 				7F3D4F511BDA4C9100B914B6 /* PersistentState.cpp in Sources */,
 				7F3D51A31BDBBEF300B914B6 /* LoadManager.cpp in Sources */,
 				7F3D4F5F1BDA4D3100B914B6 /* Simulation.cpp in Sources */,
@@ -1326,6 +1335,7 @@
 				7F63A97B1C68BA73009B81D3 /* InferredQuorumTests.cpp in Sources */,
 				7F3D4F471BDA4C7200B914B6 /* TrustFrame.cpp in Sources */,
 				7F3D4F751BDA4D4800B914B6 /* TxTests.cpp in Sources */,
+				7FC9BA371DB68B1A0017FE74 /* AdministrativeOpFrame.cpp in Sources */,
 				7F3D4F7D1BDA4D5A00B914B6 /* TmpDir.cpp in Sources */,
 				7F3D4F7C1BDA4D5A00B914B6 /* TimerTests.cpp in Sources */,
 				7F3D51A01BDBBEF300B914B6 /* Floodgate.cpp in Sources */,
