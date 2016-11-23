@@ -15,6 +15,7 @@
 #include "lib/http/HttpClient.h"
 #include "crypto/Hex.h"
 #include "crypto/SecretKey.h"
+#include "crypto/StrKey.h"
 #include "history/HistoryManager.h"
 #include "main/PersistentState.h"
 #include <sodium.h>
@@ -42,6 +43,7 @@ enum opttag
     OPT_FUZZ,
     OPT_GENFUZZ,
     OPT_GENSEED,
+    OPT_CHECKPUB,
     OPT_GRAPHQUORUM,
     OPT_HELP,
     OPT_INFERQUORUM,
@@ -65,6 +67,7 @@ static const struct option stellar_core_options[] = {
     {"fuzz", required_argument, nullptr, OPT_FUZZ},
     {"genfuzz", required_argument, nullptr, OPT_GENFUZZ},
     {"genseed", no_argument, nullptr, OPT_GENSEED},
+    {"checkpub", required_argument, nullptr, OPT_CHECKPUB},
     {"graphquorum", optional_argument, nullptr, OPT_GRAPHQUORUM},
     {"help", no_argument, nullptr, OPT_HELP},
     {"inferquorum", optional_argument, nullptr, OPT_INFERQUORUM},
@@ -94,8 +97,9 @@ usage(int err = 1)
           "with the local ledger rather than waiting to hear from the "
           "network.\n"
           "      --fuzz FILE     Run a single fuzz input and exit\n"
-          "      --genfuzz FILE  Generate a random fuzzer input file\n "
+          "      --genfuzz FILE  Generate a random fuzzer input file\n"
           "      --genseed       Generate and print a random node seed\n"
+          "      --checkpub      Check if public key is valid\n"
           "      --help          Display this string\n"
           "      --inferquorum   Print a quorum set inferred from history\n"
           "      --checkquorum   Check quorum intersection from history\n"
@@ -423,6 +427,13 @@ main(int argc, char* const* argv)
             SecretKey key = SecretKey::random();
             std::cout << "Secret seed: " << key.getStrKeySeed() << std::endl;
             std::cout << "Public: " << key.getStrKeyPublic() << std::endl;
+            return 0;
+        }
+        case OPT_CHECKPUB:
+        {
+            uint8_t decodedVer = 0;
+            std::vector<uint8_t> decoded;
+            std::cout << strKey::fromStrKey(std::string(optarg), decodedVer, decoded) << std::endl;
             return 0;
         }
         case OPT_INFERQUORUM:
