@@ -15,7 +15,6 @@
 #include "lib/http/HttpClient.h"
 #include "crypto/Hex.h"
 #include "crypto/SecretKey.h"
-#include "crypto/StrKey.h"
 #include "history/HistoryManager.h"
 #include "main/PersistentState.h"
 #include <sodium.h>
@@ -431,9 +430,14 @@ main(int argc, char* const* argv)
         }
         case OPT_CHECKPUB:
         {
-            uint8_t decodedVer = 0;
-            std::vector<uint8_t> decoded;
-            std::cout << strKey::fromStrKey(std::string(optarg), decodedVer, decoded) << std::endl;
+            try {
+                PublicKey pk = PubKeyUtils::fromStrKey(std::string(optarg));
+            } catch (std::exception& e) {
+                std::cout << 0 << std::endl;
+                return 0;
+            }
+
+            std::cout << 1 << std::endl;
             return 0;
         }
         case OPT_INFERQUORUM:
