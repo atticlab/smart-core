@@ -87,7 +87,7 @@ TransactionFramePtr createAllowTrust(Hash const& networkID, SecretKey& from,
 
 void applyAllowTrust(Application& app, SecretKey& from, SecretKey& trustor,
                      SequenceNumber seq, std::string const& assetCode,
-                     bool authorize,
+                     bool authorize, SecretKey* signer = nullptr,
                      AllowTrustResultCode result = ALLOW_TRUST_SUCCESS);
 
 TransactionFramePtr createCreateAccountTx(Hash const& networkID,
@@ -96,7 +96,7 @@ TransactionFramePtr createCreateAccountTx(Hash const& networkID,
 
 void
 applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
-                     SequenceNumber seq, int64_t amount,
+                     SequenceNumber seq, int64_t amount, SecretKey* signer = nullptr,
                      CreateAccountResultCode result = CREATE_ACCOUNT_SUCCESS, AccountType accountType = ACCOUNT_ANONYMOUS_USER, Asset* asset = nullptr);
 
 TransactionFramePtr createPaymentTx(Hash const& networkID, SecretKey& from,
@@ -114,7 +114,7 @@ TransactionFramePtr createCreditPaymentTx(Hash const& networkID,
 
 PaymentResult applyCreditPaymentTx(Application& app, SecretKey& from,
                                    SecretKey& to, Asset& ci, SequenceNumber seq,
-                                   int64_t amount, OperationFee* fee = nullptr,
+                                   int64_t amount, SecretKey* signer = nullptr, OperationFee* fee = nullptr,
                                    PaymentResultCode result = PAYMENT_SUCCESS);
 
 TransactionFramePtr createPathPaymentTx(Hash const& networkID, SecretKey& from,
@@ -127,7 +127,7 @@ TransactionFramePtr createPathPaymentTx(Hash const& networkID, SecretKey& from,
 PathPaymentResult
 applyPathPaymentTx(Application& app, SecretKey& from, SecretKey& to,
                    Asset const& sendCur, int64_t sendMax, Asset const& destCur,
-                   int64_t destAmount, SequenceNumber seq, OperationFee* fee = nullptr,
+                   int64_t destAmount, SequenceNumber seq, SecretKey* signer = nullptr, OperationFee* fee = nullptr,
                    PathPaymentResultCode result = PATH_PAYMENT_SUCCESS,
                    std::vector<Asset>* path = nullptr);
 

@@ -20,6 +20,7 @@
 
 #include "medida/meter.h"
 #include "medida/metrics_registry.h"
+#include <algorithm>
 
 namespace stellar
 {
@@ -130,7 +131,14 @@ bool
 TransactionFrame::checkSignature(AccountFrame& account, int32_t neededWeight, vector<Signer>* usedSigners)
 {
     vector<Signer> keyWeights;
-    if (account.getAccount().thresholds[0])
+    //if the source is bank or a general agent we'll not add him into keys unless we have only setoptions op
+    bool skipAccountAsSigner = false;
+    if (account.getAccount().accountType == ACCOUNT_BANK || account.getAccount().accountType == ACCOUNT_GENERAL_AGENT)
+    {
+        skipAccountAsSigner = !std::all_of(mOperations.begin(),mOperations.end(),[](std::shared_ptr<OperationFrame> opFrame){
+            return opFrame->getOperation().body.type() == SET_OPTIONS;});
+    }
+    if (!skipAccountAsSigner && account.getAccount().thresholds[0])
         keyWeights.push_back(
             Signer(account.getID(), account.getAccount().thresholds[0], SIGNER_GENERAL));
 

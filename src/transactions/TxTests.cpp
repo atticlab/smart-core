@@ -367,12 +367,13 @@ createAllowTrust(Hash const& networkID, SecretKey& from, SecretKey& trustor,
 void
 applyAllowTrust(Application& app, SecretKey& from, SecretKey& trustor,
                 SequenceNumber seq, std::string const& assetCode,
-                bool authorize, AllowTrustResultCode result)
+                bool authorize, SecretKey* signer, AllowTrustResultCode result)
 {
     TransactionFramePtr txFrame;
     txFrame = createAllowTrust(app.getNetworkID(), from, trustor, seq,
                                assetCode, authorize);
-
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
@@ -401,7 +402,7 @@ createCreateAccountTx(Hash const& networkID, SecretKey& from, SecretKey& to,
 
 void
 applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
-                     SequenceNumber seq, int64_t amount,
+                     SequenceNumber seq, int64_t amount, SecretKey* signer,
                      CreateAccountResultCode result, AccountType accountType, Asset* asset)
 {
     TransactionFramePtr txFrame;
@@ -412,7 +413,8 @@ applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
     fromAccount = loadAccount(from, app);
 
     txFrame = createCreateAccountTx(app.getNetworkID(), from, to, seq, amount, accountType, asset);
-
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
@@ -543,14 +545,16 @@ makeAsset(SecretKey& issuer, std::string const& code)
 
 PaymentResult
 applyCreditPaymentTx(Application& app, SecretKey& from, SecretKey& to,
-                     Asset& ci, SequenceNumber seq, int64_t amount, OperationFee* fee,
+                     Asset& ci, SequenceNumber seq, int64_t amount, SecretKey* signer, OperationFee* fee,
                      PaymentResultCode result)
 {
     TransactionFramePtr txFrame;
 
     txFrame =
         createCreditPaymentTx(app.getNetworkID(), from, to, ci, seq, amount, fee);
-
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
+    
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
@@ -594,14 +598,15 @@ createPathPaymentTx(Hash const& networkID, SecretKey& from, SecretKey& to,
 PathPaymentResult
 applyPathPaymentTx(Application& app, SecretKey& from, SecretKey& to,
                    Asset const& sendCur, int64_t sendMax, Asset const& destCur,
-                   int64_t destAmount, SequenceNumber seq, OperationFee* fee, 
+                   int64_t destAmount, SequenceNumber seq, SecretKey* signer, OperationFee* fee,
                    PathPaymentResultCode result, std::vector<Asset>* path)
 {
     TransactionFramePtr txFrame;
 
     txFrame = createPathPaymentTx(app.getNetworkID(), from, to, sendCur,
                                   sendMax, destCur, destAmount, seq, fee, path);
-
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
