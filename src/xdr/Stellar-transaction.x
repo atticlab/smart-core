@@ -47,7 +47,7 @@ struct ScratchCard
 struct CreateAccountOp
 {
     AccountID destination; // account to create
-    union switch (uint32 accountType)
+    union switch (AccountType accountType)
     {
     case ACCOUNT_SCRATCH_CARD:
         ScratchCard scratchCard;
