@@ -58,7 +58,7 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 	auto agentSeq = getAccountSeqNum(agent, app) + 1;
 
 	auto account = getAccount("account");
-	applyCreateAccountTx(app, root, agent, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
+	applyCreateAccountTx(app, root, account, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
 	auto accountSeq = getAccountSeqNum(account, app) + 1;
 
 	auto usd = makeAsset(root, "USD");
@@ -69,9 +69,9 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 	fee.fee().asset = usd;
 	fee.fee().flatFee.activate() = commissionAmount;
 	fee.fee().amountToCharge = commissionAmount;
-	applyCreditPaymentTx(app, root, agent, usd, rootSeq++, paymentAmount + commissionAmount, &sk, &fee);
+	applyCreditPaymentTx(app, root, agent, usd, rootSeq++, paymentAmount, &sk, &fee);
 	auto agentLine = loadTrustLine(agent, usd, app, true);
-	REQUIRE(agentLine->getBalance() == paymentAmount);
+	REQUIRE(agentLine->getBalance() == paymentAmount - commissionAmount);
 	auto commissionLine = loadTrustLine(commissionAccount, usd, app, true);
 	REQUIRE(commissionLine->getBalance() == commissionAmount);
 
@@ -140,7 +140,7 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 		commissionLine = loadTrustLine(commissionAccount, usd, app, true);
 		REQUIRE(commissionLine->getBalance() == commissionAmount);
 		agentLine = loadTrustLine(agent, usd, app, true);
-		REQUIRE(agentLine->getBalance() == paymentAmount);
+		REQUIRE(agentLine->getBalance() == paymentAmount - commissionAmount);
 		applyChangeTrust(app, account, root, accountSeq++, "USD", INT64_MAX);
 		auto accountLine = loadTrustLine(account, usd, app, true);
 		REQUIRE(accountLine->getBalance() == 0);
@@ -152,6 +152,10 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 		agentLine = loadTrustLine(agent, usd, app, true);
 		REQUIRE(agentLine->getBalance() == 0);
 		accountLine = loadTrustLine(account, usd, app, true);
-		REQUIRE(accountLine->getBalance() == paymentAmount + commissionAmount);
+		REQUIRE(accountLine->getBalance() == paymentAmount);
+		SECTION("Already reversed")
+		{
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, commissionAmount, PAYMENT_REVERSAL_ALREADY_REVERSED);
+		}
 	}
 }
