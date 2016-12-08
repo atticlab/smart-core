@@ -13,6 +13,7 @@
 #include "TxTests.h"
 #include "transactions/TransactionFrame.h"
 #include "ledger/LedgerDelta.h"
+#include "crypto/SHA.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -28,7 +29,10 @@ TEST_CASE("set options", "[tx][setoptions]")
 {
     using xdr::operator==;
 
-    Config const& cfg = getTestConfig();
+    Config cfg = getTestConfig();
+	auto commissionPass = "(VVV)(^,,,^)(VVV)";
+	auto commissionAccount = SecretKey::fromSeed(sha256(commissionPass));
+	cfg.BANK_COMMISSION_KEY = commissionAccount.getPublicKey();
 
     VirtualClock clock;
     Application::pointer appPtr = Application::create(clock, cfg);
@@ -40,8 +44,11 @@ TEST_CASE("set options", "[tx][setoptions]")
     SecretKey a1 = getAccount("A");
 
     SequenceNumber rootSeq = getAccountSeqNum(root, app) + 1;
+	SecretKey adminSignerKP = getAccount("admin_signer");
+	auto adminSigner = Signer(adminSignerKP.getPublicKey(), 100, SIGNER_ADMIN);
+	applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr, nullptr, &adminSigner, nullptr);
 
-    applyCreateAccountTx(app, root, a1, rootSeq++, 0);
+    applyCreateAccountTx(app, root, a1, rootSeq++, 0, &adminSignerKP);
 
     SequenceNumber a1seq = getAccountSeqNum(a1, app) + 1;
 
@@ -63,23 +70,43 @@ TEST_CASE("set options", "[tx][setoptions]")
             applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
                             nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER);
         }
-		SECTION("can't create emission signer if not bank")
+		SECTION("Given emission signer")
 		{
 			auto b1 = getAccount("b1");
 			Signer sk(b1.getPublicKey(), 100, SIGNER_EMISSION);
-			applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
-				nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
-			applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
-				nullptr, &sk, nullptr);
+			SECTION("Can't add if not bank")
+			{
+				applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
+			}
+			SECTION("Can add if bank")
+			{
+				applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+				// or commission account with type BANK
+				auto commissionSeq = getAccountSeqNum(commissionAccount, app) + 1;
+				applySetOptions(app, commissionAccount, commissionSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+			}
 		}
-		SECTION("can't create admin signer if not bank")
+		SECTION("Given admin signer")
 		{
 			auto b1 = getAccount("b1");
 			Signer sk(b1.getPublicKey(), 100, SIGNER_ADMIN);
-			applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
-				nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
-			applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
-				nullptr, &sk, nullptr);
+			SECTION("Can't add if not bank")
+			{
+				applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
+			}
+			SECTION("Can add if bank")
+			{
+				applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+				// or commission account with type BANK
+				auto commissionSeq = getAccountSeqNum(commissionAccount, app) + 1;
+				applySetOptions(app, commissionAccount, commissionSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+			}
 		}
         SECTION("multiple signers")
         {
