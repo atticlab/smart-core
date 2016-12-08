@@ -8,6 +8,7 @@
 #include "ledger/OfferFrame.h"
 #include "ledger/TrustFrame.h"
 #include "ledger/DataFrame.h"
+#include "ledger/ReversedPaymentFrame.h"
 #include "ledger/LedgerDelta.h"
 #include "xdrpp/printer.h"
 #include "xdrpp/marshal.h"
@@ -37,6 +38,9 @@ EntryFrame::FromXDR(LedgerEntry const& from)
     case DATA:
         res = std::make_shared<DataFrame>(from);
         break;
+	case REVERSED_PAYMENT:
+		res = std::make_shared<ReversedPaymentFrame>(from);
+		break;
     }
     return res;
 }
@@ -73,6 +77,13 @@ EntryFrame::storeLoad(LedgerKey const& key, Database& db)
             DataFrame::loadData(data.accountID,data.dataName, db));
     }
     break;
+	case REVERSED_PAYMENT:
+	{
+		auto const& rp = key.reversedPayment();
+		res = std::static_pointer_cast<EntryFrame>(
+			ReversedPaymentFrame::loadReversedPayment(rp.ID, db));
+	}
+	break;
     }
     return res;
 }
@@ -210,6 +221,8 @@ EntryFrame::exists(Database& db, LedgerKey const& key)
         return OfferFrame::exists(db, key);
     case DATA:
         return DataFrame::exists(db, key);
+	case REVERSED_PAYMENT:
+		return ReversedPaymentFrame::exists(db, key);
     default:
         abort();
     }
@@ -232,6 +245,9 @@ EntryFrame::storeDelete(LedgerDelta& delta, Database& db, LedgerKey const& key)
     case DATA:
         DataFrame::storeDelete(delta, db, key);
         break;
+	case REVERSED_PAYMENT:
+		ReversedPaymentFrame::storeDelete(delta, db, key);
+		break;
     }
 }
 
@@ -265,6 +281,10 @@ LedgerEntryKey(LedgerEntry const& e)
         k.data().accountID = d.data().accountID;
         k.data().dataName = d.data().dataName;
         break;
+	case REVERSED_PAYMENT:
+		k.type(REVERSED_PAYMENT);
+		k.reversedPayment().ID = d.reversedPayment().ID;
+		break;
     }
     return k;
 }

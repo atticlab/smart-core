@@ -22,6 +22,7 @@
 #include "transactions/SetOptionsOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
 #include "transactions/AdministrativeOpFrame.h"
+#include "transactions/PaymentReversalOpFrame.h"
 #include "database/Database.h"
 
 #include "medida/meter.h"
@@ -62,6 +63,8 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationF
         return shared_ptr<OperationFrame>(new ManageDataOpFrame(op, res, fee, tx));
 	case ADMINISTRATIVE:
 		return shared_ptr<OperationFrame>(new AdministrativeOpFrame(op, res, fee, tx));
+	case PAYMENT_REVERSAL:
+		return shared_ptr<OperationFrame>(new PaymentReversalOpFrame(op, res, fee, tx));
 			
     default:
         ostringstream err;

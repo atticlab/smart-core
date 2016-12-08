@@ -82,6 +82,8 @@ struct LedgerEntryIdCmp
                 return ad.dataName < bd.dataName;
             }
         }
+		case REVERSED_PAYMENT:
+			return a.reversedPayment().ID < b.reversedPayment().ID;
         }
         return false;
     }

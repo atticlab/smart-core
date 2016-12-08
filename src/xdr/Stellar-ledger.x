@@ -122,6 +122,11 @@ case DATA:
         AccountID accountID;
         string64 dataName;
     } data;
+case REVERSED_PAYMENT:
+	struct
+	{
+		int64 ID;
+	} reversedPayment;
 };
 
 enum BucketEntryType

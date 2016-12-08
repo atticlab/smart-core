@@ -14,6 +14,7 @@
 #include "transactions/TransactionFrame.h"
 #include "ledger/LedgerDelta.h"
 #include "ledger/DataFrame.h"
+#include "ledger/ReversedPaymentFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
@@ -25,6 +26,7 @@
 #include "transactions/MergeOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
 #include "transactions/AdministrativeOpFrame.h"
+#include "transactions/PaymentReversalOpFrame.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -504,12 +506,14 @@ applyPaymentTx(Application& app, SecretKey& from, SecretKey& to,
 void
 applyChangeTrust(Application& app, SecretKey& from, SecretKey& to,
                  SequenceNumber seq, std::string const& assetCode,
-                 int64_t limit, ChangeTrustResultCode result)
+                 int64_t limit, ChangeTrustResultCode result, SecretKey* signer)
 {
     TransactionFramePtr txFrame;
 
     txFrame =
         createChangeTrust(app.getNetworkID(), from, to, seq, assetCode, limit);
+	if (signer)
+		reSignTransaction(*txFrame, *signer);
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
@@ -943,6 +947,43 @@ void applyAdminOp(
 
 	REQUIRE(AdministrativeOpFrame::getInnerCode(
 		txFrame->getResult().result.results()[0]) == targetResult);
+}
+
+TransactionFramePtr createPaymentReversalOp(Hash const& networkID, SecretKey& source, SequenceNumber seq,
+	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount)
+{
+	Operation op;
+	op.body.type(PAYMENT_REVERSAL);
+	PaymentReversalOp& reversal = op.body.paymentReversalOp();
+	reversal.paymentID = paymentID;
+	reversal.paymentSource = paymentSource.getPublicKey();
+	reversal.asset = asset;
+	reversal.amount = amount;
+	reversal.commissionAmount = commissionAmount;
+	auto tx = transactionFromOperation(networkID, source, seq, op);
+	return tx;
+}
+
+void applyPaymentReversalOp(Application& app, SecretKey& source, SequenceNumber seq,
+	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount,
+	PaymentReversalResultCode targetResult)
+{
+	TransactionFramePtr txFrame =
+		createPaymentReversalOp(app.getNetworkID(), source, seq, paymentID, paymentSource, asset, amount, commissionAmount);
+
+	LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
+		app.getDatabase());
+	applyCheck(txFrame, delta, app);
+
+	REQUIRE(PaymentReversalOpFrame::getInnerCode(
+		txFrame->getResult().result.results()[0]) == targetResult);
+
+	if (targetResult == PAYMENT_REVERSAL_SUCCESS) {
+		LedgerKey key;
+		key.type(REVERSED_PAYMENT);
+		key.reversedPayment().ID = paymentID;
+		REQUIRE(ReversedPaymentFrame::exists(app.getDatabase(), key));
+	}
 }
 
 

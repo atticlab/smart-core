@@ -26,7 +26,8 @@ enum OperationType
     ACCOUNT_MERGE = 8,
     INFLATION = 9,
     MANAGE_DATA = 10,
-	ADMINISTRATIVE = 11
+	ADMINISTRATIVE = 11,
+	PAYMENT_REVERSAL = 12
 };
 
 /* CreateAccount
@@ -241,6 +242,23 @@ struct AdministrativeOp
 	longString opData;
 };
 
+/* Reversal Payment
+
+    Returns payment to sender
+
+    Threshold: med
+
+    Result: PaymentReversalResult
+*/
+struct PaymentReversalOp
+{
+    AccountID paymentSource; // sender of payment to be reversed
+    Asset asset;             // what they end up with
+    int64 amount;            // amount they end up with
+	int64 commissionAmount;   // amount of commission to be returned
+	int64 paymentID;         // id of payment to be reversed
+};
+
 /* An operation is the lowest unit of work that a transaction does */
 struct Operation
 {
@@ -275,6 +293,8 @@ struct Operation
         ManageDataOp manageDataOp;
 	case ADMINISTRATIVE:
 		AdministrativeOp adminOp;
+	case PAYMENT_REVERSAL:
+		PaymentReversalOp paymentReversalOp;
     }
     body;
 };
@@ -705,6 +725,44 @@ default:
     void;
 };
 
+
+/******* PaymentReversal Result ********/
+
+enum PaymentReversalResultCode
+{
+    // codes considered as "success" for the operation
+    PAYMENT_REVERSAL_SUCCESS = 0, // payment successfuly completed
+
+    // codes considered as "failure" for the operation
+    PAYMENT_REVERSAL_UNDERFUNDED = -1,                   // not enough funds in source account
+    PAYMENT_REVERSAL_SRC_NO_TRUST = -2,                  // no trust line on source account
+    PAYMENT_REVERSAL_SRC_NOT_AUTHORIZED = -3,            // source not authorized to transfer
+    PAYMENT_REVERSAL_NO_PAYMENT_SENDER = -4,             // destination account does not exist
+    PAYMENT_REVERSAL_NO_PAYMENT_SENDER_TRUST = -5,       // destination missing a trust line for asset
+    PAYMENT_REVERSAL_PAYMENT_SENDER_NOT_AUTHORIZED = -6, // destination not authorized to hold asset
+    PAYMENT_REVERSAL_PAYMENT_SENDER_LINE_FULL = -7,      // destination would go above their limit
+    PAYMENT_REVERSAL_NO_ISSUER = -8,                     // missing issuer on asset
+	PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED = -9,        // not enough funds in commission account
+	PAYMENT_REVERSAL_PAYMENT_EXPIRED = -10,              // payment to old to reverse 
+	PAYMENT_REVERSAL_PAYMENT_DOES_NOT_EXISTS = -11,      // payment with such id does not exists
+	PAYMENT_REVERSAL_INVALID_AMOUNT = -12,               // amount is not equal to amount in payment
+	PAYMENT_REVERSAL_INVALID_COMMISSION = -13,           // commission is not equal to commission in payment
+	PAYMENT_REVERSAL_INVALID_PAYMENT_SENDER = -14,       // payment sender is not equal to source in payment
+	PAYMENT_REVERSAL_INVALID_SOURCE = -15,               // source of reversal is not equal payment destination
+	PAYMENT_REVERSAL_INVALID_ASSET = -16,                // asset is not equal to asset in payment
+	PAYMENT_REVERSAL_MALFORMED = -17,                    // reversal payment is malformed in some way
+	PAYMENT_REVERSAL_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
+	PAYMENT_REVERSAL_ALREADY_REVERSED = -19              // payment already have been reversed
+};
+
+union PaymentReversalResult switch (PaymentReversalResultCode code)
+{
+case PAYMENT_REVERSAL_SUCCESS:
+    void;
+default:
+    void;
+};
+
 /* High level Operation Result */
 
 enum OperationResultCode
@@ -744,6 +802,8 @@ case opINNER:
         ManageDataResult manageDataResult;
 	case ADMINISTRATIVE:
 		AdministrativeResult adminResult;
+	case PAYMENT_REVERSAL:
+		PaymentReversalResult paymentReversalResult;
     }
     tr;
 default:
