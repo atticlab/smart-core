@@ -18,12 +18,13 @@ namespace stellar
 const char* ReversedPaymentFrame::kSQLCreateStatement1 =
     "CREATE TABLE reversed_payment"
     "("
-        "id BIGINT NOT NULL,"
+        "id           BIGINT NOT NULL,"
+		"lastmodified INT    NOT NULL,"
         "PRIMARY KEY (id)"
     ");";
 
 static const char* reversedPaymentColumnSelector =
-    "SELECT id FROM reversed_payment";
+    "SELECT id, lastmodified FROM reversed_payment";
 
 ReversedPaymentFrame::ReversedPaymentFrame() : EntryFrame(REVERSED_PAYMENT), mReversedPayment(mEntry.data.reversedPayment())
 {
@@ -79,6 +80,7 @@ ReversedPaymentFrame::loadData(StatementContext& prep,
 
     statement& st = prep.statement();
     st.exchange(into(oe.ID));
+	st.exchange(into(le.lastModifiedLedgerSeq));
     st.define_and_bind();
     st.execute(true);
     while (st.got_data())
@@ -152,8 +154,8 @@ ReversedPaymentFrame::storeUpdateHelper(LedgerDelta& delta, Database& db, bool i
 
     if (insert)
     {
-        sql = "INSERT INTO reversed_payment (id)"
-               " VALUES (:id)";
+        sql = "INSERT INTO reversed_payment (id, lastmodified)"
+               " VALUES (:id, :v1)";
     }
     else
     {
@@ -165,6 +167,7 @@ ReversedPaymentFrame::storeUpdateHelper(LedgerDelta& delta, Database& db, bool i
 
     
     st.exchange(use(mReversedPayment.ID, "id"));
+	st.exchange(use(getLastModified(), "v1"));
 
     st.define_and_bind();
     st.execute(true);
