@@ -854,22 +854,22 @@ applyInflation(Application& app, SecretKey& from, SequenceNumber seq,
 }
 
 TransactionFramePtr
-createAccountMerge(Hash const& networkID, SecretKey& source, SecretKey& dest,
-                   SequenceNumber seq)
+createAccountMerge(Hash const& networkID, SecretKey& signer, SecretKey& source, SecretKey& dest, SequenceNumber seq)
 {
     Operation op;
     op.body.type(ACCOUNT_MERGE);
     op.body.destination() = dest.getPublicKey();
+    op.sourceAccount.activate() = source.getPublicKey();
 
-    return transactionFromOperation(networkID, source, seq, op);
+
+    return transactionFromOperation(networkID, signer, seq, op);
 }
 
 void
-applyAccountMerge(Application& app, SecretKey& source, SecretKey& dest,
-                  SequenceNumber seq, AccountMergeResultCode targetResult)
+applyAccountMerge(Application& app, SecretKey& signer, SecretKey& source, SecretKey& dest, SequenceNumber seq, AccountMergeResultCode targetResult)
 {
     TransactionFramePtr txFrame =
-        createAccountMerge(app.getNetworkID(), source, dest, seq);
+        createAccountMerge(app.getNetworkID(), signer, source, dest, seq);
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
