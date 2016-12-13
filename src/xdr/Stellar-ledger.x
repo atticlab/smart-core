@@ -125,7 +125,7 @@ case DATA:
 case REVERSED_PAYMENT:
 	struct
 	{
-		int64 ID;
+		int64 rID;
 	} reversedPayment;
 };
 

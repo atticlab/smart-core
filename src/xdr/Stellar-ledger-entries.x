@@ -240,7 +240,7 @@ struct DataEntry
 */
 struct ReversedPaymentEntry
 {
-    int64 ID;       // id of reversed payment
+    int64 rID;       // id of reversed payment
 
     // reserved for future use
     union switch (int v)

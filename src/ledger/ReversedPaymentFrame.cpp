@@ -79,7 +79,7 @@ ReversedPaymentFrame::loadData(StatementContext& prep,
     ReversedPaymentEntry& oe = le.data.reversedPayment();
 
     statement& st = prep.statement();
-    st.exchange(into(oe.ID));
+    st.exchange(into(oe.rID));
 	st.exchange(into(le.lastModifiedLedgerSeq));
     st.define_and_bind();
     st.execute(true);
@@ -99,7 +99,7 @@ ReversedPaymentFrame::exists(Database& db, LedgerKey const& key)
         db.getPreparedStatement("SELECT EXISTS (SELECT NULL FROM reversed_payment "
                                 "WHERE id=:id)");
     auto& st = prep.statement();
-    st.exchange(use(key.reversedPayment().ID));
+    st.exchange(use(key.reversedPayment().rID));
     st.exchange(into(exists));
     st.define_and_bind();
     st.execute(true);
@@ -126,7 +126,7 @@ ReversedPaymentFrame::storeDelete(LedgerDelta& delta, Database& db, LedgerKey co
     auto timer = db.getDeleteTimer("reversed_payment");
     auto prep = db.getPreparedStatement("DELETE FROM reversed_payment WHERE id=:id");
     auto& st = prep.statement();
-    st.exchange(use(key.reversedPayment().ID));
+    st.exchange(use(key.reversedPayment().rID));
     st.define_and_bind();
     st.execute(true);
     delta.deleteEntry(key);
@@ -166,7 +166,7 @@ ReversedPaymentFrame::storeUpdateHelper(LedgerDelta& delta, Database& db, bool i
     auto& st = prep.statement();
 
     
-    st.exchange(use(mReversedPayment.ID, "id"));
+    st.exchange(use(mReversedPayment.rID, "id"));
 	st.exchange(use(getLastModified(), "v1"));
 
     st.define_and_bind();

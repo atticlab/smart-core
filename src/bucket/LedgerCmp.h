@@ -83,7 +83,7 @@ struct LedgerEntryIdCmp
             }
         }
 		case REVERSED_PAYMENT:
-			return a.reversedPayment().ID < b.reversedPayment().ID;
+			return a.reversedPayment().rID < b.reversedPayment().rID;
         }
         return false;
     }

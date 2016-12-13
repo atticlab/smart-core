@@ -981,7 +981,7 @@ void applyPaymentReversalOp(Application& app, SecretKey& source, SequenceNumber 
 	if (targetResult == PAYMENT_REVERSAL_SUCCESS) {
 		LedgerKey key;
 		key.type(REVERSED_PAYMENT);
-		key.reversedPayment().ID = paymentID;
+		key.reversedPayment().rID = paymentID;
 		REQUIRE(ReversedPaymentFrame::exists(app.getDatabase(), key));
 	}
 }

@@ -34,14 +34,14 @@ bool PaymentReversalOpFrame::checkAlreadyReversed(LedgerDelta& delta, Database& 
 	// check if already reversed
 	LedgerKey key;
 	key.type(REVERSED_PAYMENT);
-	key.reversedPayment().ID = mPaymentReversal.paymentID;
+	key.reversedPayment().rID = mPaymentReversal.paymentID;
 	auto alreadyReversed = ReversedPaymentFrame::exists(db, key);
 	if (alreadyReversed) {
 		return false;
 	}
 
 	auto reversedPayment = make_shared<ReversedPaymentFrame>();
-	reversedPayment->getReversedPayment().ID = mPaymentReversal.paymentID;
+	reversedPayment->getReversedPayment().rID = mPaymentReversal.paymentID;
 	reversedPayment->storeAdd(delta, db);
 	return true;
 }

@@ -81,7 +81,7 @@ EntryFrame::storeLoad(LedgerKey const& key, Database& db)
 	{
 		auto const& rp = key.reversedPayment();
 		res = std::static_pointer_cast<EntryFrame>(
-			ReversedPaymentFrame::loadReversedPayment(rp.ID, db));
+			ReversedPaymentFrame::loadReversedPayment(rp.rID, db));
 	}
 	break;
     }
@@ -283,7 +283,7 @@ LedgerEntryKey(LedgerEntry const& e)
         break;
 	case REVERSED_PAYMENT:
 		k.type(REVERSED_PAYMENT);
-		k.reversedPayment().ID = d.reversedPayment().ID;
+		k.reversedPayment().rID = d.reversedPayment().rID;
 		break;
     }
     return k;
