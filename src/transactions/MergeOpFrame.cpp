@@ -97,14 +97,25 @@ MergeOpFrame::checkValid(Application& app, LedgerDelta* delta)
                 AccountFrame::makeAuthOnlyAccount(*mOperation.sourceAccount);
         }
     }
-
-    if (!(checkBankSigned(app)))
+    auto bankKey = app.getConfig().BANK_MASTER_KEY;
+    if (getSourceID() == bankKey)
     {
-        app.getMetrics()
+        bool isBank = false;
+        for (auto& signer : mUsedSigners)
+        {
+            if (signer.signerType == SIGNER_ADMIN){
+                isBank = true;
+                break;
+            }
+        }
+        if (!isBank)
+        {
+            app.getMetrics()
             .NewMeter({"operation", "invalid", "bad-auth"}, "operation")
             .Mark();
-        mResult.code(opBAD_AUTH);
-        return false;
+            mResult.code(opBAD_AUTH);
+            return false;
+        }
     }
 
     if (!forApply)
