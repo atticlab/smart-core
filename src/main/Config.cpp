@@ -17,7 +17,7 @@ namespace stellar
 {
 using xdr::operator<;
 
-    Config::Config() : NODE_SEED(SecretKey::random()), BANK_MASTER_KEY(PubKeyUtils::fromStrKey("GAWIB7ETYGSWULO4VB7D6S42YLPGIC7TY7Y2SSJKVOTMQXV5TILYWBUA")), BANK_COMMISSION_KEY(PubKeyUtils::fromStrKey("GCO5BZT5V3N3SK2CD5UKDSEQJBYFSIMYDV2B75SLKWEXLRYF5GNORYCG"))
+    Config::Config() : NODE_SEED(SecretKey::random()), BANK_MASTER_KEY(PubKeyUtils::fromStrKey("GAWIB7ETYGSWULO4VB7D6S42YLPGIC7TY7Y2SSJKVOTMQXV5TILYWBUA")), BANK_COMMISSION_KEY(PubKeyUtils::fromStrKey("GCO5BZT5V3N3SK2CD5UKDSEQJBYFSIMYDV2B75SLKWEXLRYF5GNORYCG")), GENERAL_AGENT_KEY(PubKeyUtils::fromStrKey("GAYVICMO6SS523NQZU2HRCYNAKGURRGK76GKIOHVXLEWQOUNA7TSQ2FO"))
 {
     // fill in defaults
 
@@ -417,6 +417,14 @@ Config::load(std::string const& filename)
                     throw std::invalid_argument("invalid BANK_COMMISSION_KEY");
                 }
 				BANK_COMMISSION_KEY = PubKeyUtils::fromStrKey(item.second->as<std::string>()->value());
+            }
+            else if (item.first == "GENERAL_AGENT_KEY")
+            {
+                if (!item.second->as<std::string>())
+                {
+                    throw std::invalid_argument("invalid GENERAL_AGENT_KEY");
+                }
+                GENERAL_AGENT_KEY = PubKeyUtils::fromStrKey(item.second->as<std::string>()->value());
             }
             else if (item.first == "NODE_IS_VALIDATOR")
             {
