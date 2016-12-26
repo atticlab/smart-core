@@ -204,18 +204,18 @@ PathPaymentOpFrame::doApply(Application& app,
         }
         destLine = tlI.first;
         
-        if(!destLine && mIsCreate)
+        if(!destLine)
         {
             destLine = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, destination, mPathPayment.destAsset);   
         }
 
-        if (!destLine)
-        {
-            app.getMetrics().NewMeter({"op-path-payment", "failure", "no-trust"},
-                             "operation").Mark();
-            innerResult().code(PATH_PAYMENT_NO_TRUST);
-            return false;
-        }
+//        if (!destLine)
+//        {
+//            app.getMetrics().NewMeter({"op-path-payment", "failure", "no-trust"},
+//                             "operation").Mark();
+//            innerResult().code(PATH_PAYMENT_NO_TRUST);
+//            return false;
+//        }
 
         if (!destLine->isAuthorized())
         {

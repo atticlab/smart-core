@@ -176,7 +176,6 @@ CreateAccountOpFrame::doCheckValid(Application& app)
         case ACCOUNT_DISTRIBUTION_AGENT:
         case ACCOUNT_SETTLEMENT_AGENT:
         case ACCOUNT_EXCHANGE_AGENT:
-        case ACCOUNT_GENERAL_AGENT:
             if (getSourceID() == app.getConfig().BANK_MASTER_KEY){
                 break;
             }
@@ -188,6 +187,7 @@ CreateAccountOpFrame::doCheckValid(Application& app)
                 return false;
             }
             break;
+        case ACCOUNT_GENERAL_AGENT:
         default:
             app.getMetrics().NewMeter({"op-create-account", "invalid",
                 "malformed-wrong-type"},

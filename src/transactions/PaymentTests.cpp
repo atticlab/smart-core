@@ -133,11 +133,11 @@ TEST_CASE("payment", "[tx][payment]")
 			applyChangeTrust(app, b1, root, b1Seq++, "USD", INT64_MAX);
 			applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, nullptr, PAYMENT_SRC_NO_TRUST);
 		}
-		SECTION("PAYMENT_NO_TRUST")
-		{
-			applyCreateAccountTx(app, root, newAccount, rootSeq++, 0, &sk);
-			applyCreditPaymentTx(app, a1, newAccount, idrCur, a1Seq++, paymentAmount, nullptr, nullptr, PAYMENT_NO_TRUST);
-		}
+//		SECTION("PAYMENT_NO_TRUST")
+//		{
+//			applyCreateAccountTx(app, root, newAccount, rootSeq++, 0, &sk);
+//			applyCreditPaymentTx(app, a1, newAccount, idrCur, a1Seq++, paymentAmount, nullptr, nullptr, PAYMENT_NO_TRUST);
+//		}
 		SECTION("PAYMENT_LINE_FULL")
 		{
 			applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++, INT64_MAX, &sk, &fee, PAYMENT_LINE_FULL);
