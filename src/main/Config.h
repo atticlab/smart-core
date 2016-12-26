@@ -49,6 +49,9 @@ class Config : public std::enable_shared_from_this<Config>
     // The account to send all the bank's commissions
     PublicKey BANK_COMMISSION_KEY;
 
+    // The account of general agent
+    PublicKey GENERAL_AGENT_KEY;
+
     // The default way stellar-core starts is to load the state from disk and
     // catch
     // up to the network before starting SCP.

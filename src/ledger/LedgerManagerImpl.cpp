@@ -162,7 +162,12 @@ LedgerManagerImpl::startNewLedger()
     AccountFrame masterAccount(mApp.getConfig().BANK_MASTER_KEY);
     masterAccount.getAccount().balance = 0;
     masterAccount.getAccount().accountType = ACCOUNT_BANK;
+
     AccountFrame commissionAccount(mApp.getConfig().BANK_COMMISSION_KEY);
+
+    AccountFrame generalAgentAccount(mApp.getConfig().GENERAL_AGENT_KEY);
+    generalAgentAccount.getAccount().accountType = ACCOUNT_GENERAL_AGENT;
+
     LedgerHeader genesisHeader;
 
     // all fields are initialized by default to 0
@@ -175,6 +180,8 @@ LedgerManagerImpl::startNewLedger()
 
     LedgerDelta delta(genesisHeader, getDatabase());
     masterAccount.storeAdd(delta, this->getDatabase());
+    generalAgentAccount.storeAdd(delta, this->getDatabase());
+
     if (!(masterAccount.getID() == commissionAccount.getID())){
         commissionAccount.getAccount().accountType = ACCOUNT_BANK;
         commissionAccount.storeAdd(delta, this->getDatabase());
@@ -184,6 +191,7 @@ LedgerManagerImpl::startNewLedger()
     mCurrentLedger = make_shared<LedgerHeaderFrame>(genesisHeader);
     CLOG(INFO, "Ledger") << "Established genesis ledger, closing";
     CLOG(INFO, "Ledger") << "Master account: " << PubKeyUtils::toStrKey(masterAccount.getID());
+    CLOG(INFO, "Ledger") << "General agent account: " << PubKeyUtils::toStrKey(generalAgentAccount.getID());
     CLOG(INFO, "Ledger") << "Commision account: " << PubKeyUtils::toStrKey(commissionAccount.getID());
     closeLedgerHelper(delta);
 }
