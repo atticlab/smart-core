@@ -42,6 +42,8 @@ enum opttag
     OPT_FUZZ,
     OPT_GENFUZZ,
     OPT_GENSEED,
+    OPT_CHECKSEED,
+    OPT_CHECKPUB,
     OPT_GRAPHQUORUM,
     OPT_HELP,
     OPT_INFERQUORUM,
@@ -65,6 +67,8 @@ static const struct option stellar_core_options[] = {
     {"fuzz", required_argument, nullptr, OPT_FUZZ},
     {"genfuzz", required_argument, nullptr, OPT_GENFUZZ},
     {"genseed", no_argument, nullptr, OPT_GENSEED},
+    {"checkseed", required_argument, nullptr, OPT_CHECKSEED},
+    {"checkpub", required_argument, nullptr, OPT_CHECKPUB},
     {"graphquorum", optional_argument, nullptr, OPT_GRAPHQUORUM},
     {"help", no_argument, nullptr, OPT_HELP},
     {"inferquorum", optional_argument, nullptr, OPT_INFERQUORUM},
@@ -94,8 +98,10 @@ usage(int err = 1)
           "with the local ledger rather than waiting to hear from the "
           "network.\n"
           "      --fuzz FILE     Run a single fuzz input and exit\n"
-          "      --genfuzz FILE  Generate a random fuzzer input file\n "
+          "      --genfuzz FILE  Generate a random fuzzer input file\n"
           "      --genseed       Generate and print a random node seed\n"
+          "      --checkseed     Check if seed key is valid\n"
+          "      --checkpub      Check if public key is valid\n"
           "      --help          Display this string\n"
           "      --inferquorum   Print a quorum set inferred from history\n"
           "      --checkquorum   Check quorum intersection from history\n"
@@ -423,6 +429,31 @@ main(int argc, char* const* argv)
             SecretKey key = SecretKey::random();
             std::cout << "Secret seed: " << key.getStrKeySeed() << std::endl;
             std::cout << "Public: " << key.getStrKeyPublic() << std::endl;
+            return 0;
+        }
+        case OPT_CHECKSEED:
+        {
+            SecretKey key;
+            try {
+                key = SecretKey::fromStrKeySeed(std::string(optarg));
+            } catch (std::exception& e) {
+                std::cout << 0 << std::endl;
+                return 0;
+            }
+
+            std::cout << key.getStrKeyPublic() << std::endl;
+            return 0;
+        }
+        case OPT_CHECKPUB:
+        {
+            try {
+                PublicKey pk = PubKeyUtils::fromStrKey(std::string(optarg));
+            } catch (std::exception& e) {
+                std::cout << 0 << std::endl;
+                return 0;
+            }
+
+            std::cout << 1 << std::endl;
             return 0;
         }
         case OPT_INFERQUORUM:
