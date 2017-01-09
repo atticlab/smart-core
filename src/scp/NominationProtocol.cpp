@@ -161,15 +161,10 @@ NominationProtocol::emitNomination()
 
     if (mSlot.processEnvelope(envelope, true) == SCP::EnvelopeState::VALID)
     {
-        if (!mLastEnvelope ||
-            isNewerStatement(mLastEnvelope->statement.pledges.nominate(),
-                             st.pledges.nominate()))
+        mLastEnvelope = make_unique<SCPEnvelope>(envelope);
+        if (mSlot.isFullyValidated())
         {
-            mLastEnvelope = make_unique<SCPEnvelope>(envelope);
-            if (mSlot.isFullyValidated())
-            {
-                mSlot.getSCPDriver().emitEnvelope(envelope);
-            }
+            mSlot.getSCPDriver().emitEnvelope(envelope);
         }
     }
     else
@@ -311,7 +306,6 @@ NominationProtocol::processEnvelope(SCPEnvelope const& envelope)
 
     SCP::EnvelopeState res = SCP::EnvelopeState::INVALID;
 
-    if (isNewerStatement(st.nodeID, nom))
     {
         if (isSane(st))
         {
@@ -398,7 +392,7 @@ NominationProtocol::processEnvelope(SCPEnvelope const& envelope)
                         modified = true;
                     }
                 }
-
+                auto noTx = mSlot.getSCPDriver().getPendingTransactionsCounter() == 0;
                 if (modified)
                 {
                     emitNomination();
@@ -412,8 +406,8 @@ NominationProtocol::processEnvelope(SCPEnvelope const& envelope)
 
                     mSlot.getSCPDriver().updatedCandidateValue(
                         mSlot.getSlotIndex(), mLatestCompositeCandidate);
-
-                    mSlot.bumpState(mLatestCompositeCandidate, false);
+                    if (!noTx)
+                        mSlot.bumpState(mLatestCompositeCandidate, false);
                 }
             }
         }
@@ -490,7 +484,6 @@ NominationProtocol::nominate(Value const& value, Value const& previousValue,
             }
         }
     }
-
     std::chrono::milliseconds timeout =
         mSlot.getSCPDriver().computeTimeout(mRoundNumber);
 
@@ -504,7 +497,7 @@ NominationProtocol::nominate(Value const& value, Value const& previousValue,
             slot->nominate(value, previousValue, true);
         });
 
-    if (updated)
+    if (mVotes.size() != 0 || updated)//(updated)
     {
         emitNomination();
     }

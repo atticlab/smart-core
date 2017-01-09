@@ -36,10 +36,16 @@ using xdr::operator==;
 class HerderImpl : public Herder, public SCPDriver
 {
     SCP mSCP;
+    const uint32_t ALLOWED_LEDGERNUM_LAG = 5;
+    const uint32_t RECHECK_SYNC =  30000000;
+    const uint32_t PEER_EXPIRATION =  100;
 
   public:
     HerderImpl(Application& app);
     ~HerderImpl();
+    uint32 getPendingTransactionsCounter() override;
+    std::map<NodeID, PeerInfo> getLastSlotFromNodes() override;
+    void setLastSlotFromNode(NodeID nodeID, PeerInfo peerInfo) override;
 
     State getState() const override;
     std::string getStateHuman() const override;
@@ -136,6 +142,9 @@ class HerderImpl : public Herder, public SCPDriver
     typedef std::unordered_map<AccountID, std::shared_ptr<TxMap>> AccountTxMap;
 
   private:
+
+    std::map<NodeID, PeerInfo> mLastSlotFromNodes;
+
     void logQuorumInformation(uint64 index);
     void ledgerClosed();
     void removeReceivedTxs(std::vector<TransactionFramePtr> const& txs);
@@ -219,6 +228,8 @@ class HerderImpl : public Herder, public SCPDriver
 
     // timer that detects that we're stuck on an SCP slot
     VirtualTimer mTrackingTimer;
+
+    VirtualTimer mRefreshTimer;
 
     // saves the SCP messages that the instance sent out last
     void persistSCPState(uint64 slot);

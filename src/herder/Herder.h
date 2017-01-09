@@ -34,6 +34,17 @@ typedef std::shared_ptr<Peer> PeerPtr;
 class Herder
 {
   public:
+    struct PeerInfo
+    {
+        uint64 nonce;
+        uint32 ledgerNum;
+        Signature sig;
+    };
+
+    virtual std::map<NodeID, PeerInfo> getLastSlotFromNodes() = 0;
+    virtual void setLastSlotFromNode(NodeID nodeID, PeerInfo peerInfo) = 0;
+
+
     // Expected time between two ledger close.
     static std::chrono::seconds const EXP_LEDGER_TIMESPAN_SECONDS;
 

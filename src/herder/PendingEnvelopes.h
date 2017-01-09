@@ -59,6 +59,7 @@ class PendingEnvelopes
     void recvSCPEnvelope(SCPEnvelope const& envelope);
     void recvSCPQuorumSet(Hash hash, const SCPQuorumSet& qset);
     void recvTxSet(Hash hash, TxSetFramePtr txset);
+    std::map<NodeID, std::pair<uint64, uint64>> getLastSlotFromNodes();
 
     void peerDoesntHave(MessageType type, Hash const& itemID,
                         Peer::pointer peer);

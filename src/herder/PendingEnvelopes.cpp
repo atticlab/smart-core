@@ -70,6 +70,7 @@ PendingEnvelopes::recvTxSet(Hash hash, TxSetFramePtr txset)
     mTxSetFetcher.recv(hash);
 }
 
+
 bool
 PendingEnvelopes::isNodeInQuorum(NodeID const& node)
 {

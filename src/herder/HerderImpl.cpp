@@ -4,6 +4,7 @@
 
 #include "herder/HerderImpl.h"
 #include "crypto/Hex.h"
+#include "crypto/SecretKey.h"
 #include "crypto/SHA.h"
 #include "herder/TxSetFrame.h"
 #include "herder/LedgerCloseData.h"
@@ -108,6 +109,7 @@ HerderImpl::HerderImpl(Application& app)
     , mTrackingTimer(app)
     , mLastTrigger(app.getClock().now())
     , mTriggerTimer(app)
+    , mRefreshTimer(app)
     , mRebroadcastTimer(app)
     , mApp(app)
     , mLedgerManager(app.getLedgerManager())
@@ -127,6 +129,39 @@ HerderImpl::getState() const
 {
     return (mTrackingSCP && mLastTrackingSCP) ? HERDER_TRACKING_STATE
                                               : HERDER_SYNCING_STATE;
+}
+
+uint32
+HerderImpl::getPendingTransactionsCounter()
+{
+    uint32 total = 0;
+    for (int i = 0; i < 4; i++)
+    {
+        total += mPendingTransactions[i].size();
+    }
+    return total;
+}
+
+std::map<NodeID, Herder::PeerInfo>
+HerderImpl::getLastSlotFromNodes()
+{
+    return mLastSlotFromNodes;
+} 
+
+void
+HerderImpl::setLastSlotFromNode(NodeID nodeID, PeerInfo peerInfo)
+{
+    PeerInfo oldPeerInfo = mLastSlotFromNodes[nodeID];
+    if (!mLastSlotFromNodes.count(nodeID))
+        mLastSlotFromNodes[nodeID] = peerInfo;
+    else
+    {
+        if (oldPeerInfo.nonce > peerInfo.nonce)
+            return;
+        if (!PubKeyUtils::verifySig(nodeID, peerInfo.sig, xdr::xdr_to_opaque(nodeID, peerInfo.ledgerNum, peerInfo.nonce)))
+            return;
+        mLastSlotFromNodes[nodeID] = peerInfo;
+    }
 }
 
 void
@@ -170,6 +205,15 @@ HerderImpl::bootstrap()
 
     mLastTrigger = mApp.getClock().now() - Herder::EXP_LEDGER_TIMESPAN_SECONDS;
     ledgerClosed();
+    mRefreshTimer.expires_from_now(
+        std::chrono::seconds(EXP_LEDGER_TIMESPAN_SECONDS));
+    mRefreshTimer.async_wait(std::bind(&HerderImpl::triggerNextLedger, this,
+                                static_cast<uint32_t>(2)),
+                &VirtualTimer::onFailureNoop);
+    mTrackingTimer.expires_from_now(
+        std::chrono::seconds(EXP_LEDGER_TIMESPAN_SECONDS));
+    mTrackingTimer.async_wait(std::bind(&HerderImpl::trackingHeartBeat, this),
+                              &VirtualTimer::onFailureNoop);
 }
 
 bool
@@ -600,7 +644,7 @@ HerderImpl::valueExternalized(uint64 slotIndex, Value const& value)
         mLastTrackingSCP = make_unique<ConsensusData>(*mTrackingSCP);
     }
 
-    trackingHeartBeat();
+    //trackingHeartBeat();
 
     TxSetFramePtr externalizedSet = mPendingEnvelopes.getTxSet(txSetHash);
 
@@ -1162,11 +1206,6 @@ HerderImpl::ledgerClosed()
     {
         mTriggerTimer.expires_from_now(std::chrono::nanoseconds(0));
     }
-
-    if (!mApp.getConfig().MANUAL_CLOSE)
-        mTriggerTimer.async_wait(std::bind(&HerderImpl::triggerNextLedger, this,
-                                           static_cast<uint32_t>(nextIndex)),
-                                 &VirtualTimer::onFailureNoop);
 }
 
 void
@@ -1331,6 +1370,12 @@ HerderImpl::triggerNextLedger(uint32_t ledgerSeqToTrigger)
     // externalize was triggered on a more recent ledger
     if (ledgerSeqToTrigger != slotIndex)
     {
+        mRefreshTimer.expires_from_now(
+            std::chrono::seconds(EXP_LEDGER_TIMESPAN_SECONDS));
+        mRefreshTimer.async_wait(std::bind(&HerderImpl::triggerNextLedger, this,
+                                static_cast<uint32_t>(lcl.header.ledgerSeq + 1)),
+                &VirtualTimer::onFailureNoop);
+
         return;
     }
 
@@ -1345,6 +1390,8 @@ HerderImpl::triggerNextLedger(uint32_t ledgerSeqToTrigger)
     {
         nextCloseTime = lcl.header.scpValue.closeTime + 1;
     }
+    if (proposedSet->mTransactions.size() == 0)
+        nextCloseTime = 0;
 
     StellarValue newProposedValue(txSetHash, nextCloseTime, emptyUpgradeSteps,
                                   0);
@@ -1396,6 +1443,11 @@ HerderImpl::triggerNextLedger(uint32_t ledgerSeqToTrigger)
     Value prevValue = xdr::xdr_to_opaque(lcl.header.scpValue);
 
     mSCP.nominate(slotIndex, mCurrentValue, prevValue);
+    mRefreshTimer.expires_from_now(
+        std::chrono::seconds(EXP_LEDGER_TIMESPAN_SECONDS));
+    mRefreshTimer.async_wait(std::bind(&HerderImpl::triggerNextLedger, this,
+                                static_cast<uint32_t>(lcl.header.ledgerSeq + 1)),
+                &VirtualTimer::onFailureNoop);
 }
 
 bool
@@ -1547,7 +1599,7 @@ HerderImpl::restoreSCPState()
     mTrackingSCP =
         make_unique<ConsensusData>(lcl.header.ledgerSeq, lcl.header.scpValue);
 
-    trackingHeartBeat();
+    //trackingHeartBeat();
 
     // load saved state from database
     auto latest64 =
@@ -1604,15 +1656,67 @@ HerderImpl::restoreSCPState()
 void
 HerderImpl::trackingHeartBeat()
 {
+    for (auto peer: mApp.getOverlayManager().getPeers())
+    {
+        if (peer->CONNECTED)
+            peer->sendAlive(getSCP().getSecretKey());
+    }
     if (mApp.getConfig().MANUAL_CLOSE)
     {
         return;
     }
+    auto slotFromNodes = getLastSlotFromNodes();
+    
+    auto peers = mApp.getOverlayManager().getPeers();
+    auto nodes = std::vector<NodeID>();
+    nodes.push_back(getSCP().getLocalNode()->getNodeID());
+    auto quorumSet = getSCP().getLocalNode()->getQuorumSet();
+    //assert(mTrackingSCP);
+    if (slotFromNodes.size() > 0 && mApp.getLedgerManager().getState() != LedgerManager::LM_CATCHING_UP_STATE)
+    {
+        auto peersSynced = std::vector<NodeID>();
+        auto peersLagging = std::vector<NodeID>();
+        peersSynced.push_back(getSCP().getLocalNode()->getNodeID());
+        int64 lowerLimit = (int64)mApp.getLedgerManager().getLedgerNum() - ALLOWED_LEDGERNUM_LAG;
+        int64 upperLimit = mApp.getLedgerManager().getLedgerNum() + ALLOWED_LEDGERNUM_LAG;
+        for (auto peer: slotFromNodes)
+        {
+            auto slotInfo = peer.second;
+            if (slotInfo.nonce < mApp.timeNow() - PEER_EXPIRATION)
+                continue;
+            int64 peerLedgerNum = slotInfo.ledgerNum;
+            nodes.push_back(peer.first);
+            if (peerLedgerNum < lowerLimit)
+            {
+                peersLagging.push_back(peer.first);
+            }
+            else if (peerLedgerNum <= upperLimit)
+            {
+                peersSynced.push_back(peer.first);
+            }
+            else
+                assert(true);   
 
-    assert(mTrackingSCP);
+        }
+        if (!LocalNode::isQuorumSlice(quorumSet, peersSynced) && mApp.getLedgerManager().getState() != LedgerManager::LM_CATCHING_UP_STATE)
+        {
+            if (mApp.getLedgerManager().getState() != LedgerManager::LM_BOOTING_STATE || mApp.getState() == Application::APP_CONNECTED_STANDBY_STATE)
+                herderOutOfSync();
+        }
+        assert (!(LocalNode::isQuorumSlice(quorumSet, peersLagging)));
+            
+
+    }
+    
+    if (!LocalNode::isQuorumSlice(quorumSet, nodes) && mApp.getLedgerManager().getState() != LedgerManager::LM_CATCHING_UP_STATE)
+        {
+            if (mApp.getLedgerManager().getState() != LedgerManager::LM_BOOTING_STATE || mApp.getState() == Application::APP_CONNECTED_STANDBY_STATE)
+                herderOutOfSync();
+        }
+
     mTrackingTimer.expires_from_now(
-        std::chrono::seconds(CONSENSUS_STUCK_TIMEOUT_SECONDS));
-    mTrackingTimer.async_wait(std::bind(&HerderImpl::herderOutOfSync, this),
+        std::chrono::seconds(EXP_LEDGER_TIMESPAN_SECONDS));
+    mTrackingTimer.async_wait(std::bind(&HerderImpl::trackingHeartBeat, this),
                               &VirtualTimer::onFailureNoop);
 }
 
