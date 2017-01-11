@@ -14,6 +14,7 @@
 #include "transactions/TransactionFrame.h"
 #include "ledger/LedgerDelta.h"
 #include "ledger/DataFrame.h"
+#include "ledger/ReversedPaymentFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
@@ -24,6 +25,8 @@
 #include "transactions/InflationOpFrame.h"
 #include "transactions/MergeOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
+#include "transactions/AdministrativeOpFrame.h"
+#include "transactions/PaymentReversalOpFrame.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -366,12 +369,13 @@ createAllowTrust(Hash const& networkID, SecretKey& from, SecretKey& trustor,
 void
 applyAllowTrust(Application& app, SecretKey& from, SecretKey& trustor,
                 SequenceNumber seq, std::string const& assetCode,
-                bool authorize, AllowTrustResultCode result)
+                bool authorize, SecretKey* signer, AllowTrustResultCode result)
 {
     TransactionFramePtr txFrame;
     txFrame = createAllowTrust(app.getNetworkID(), from, trustor, seq,
                                assetCode, authorize);
-
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
@@ -383,19 +387,25 @@ applyAllowTrust(Application& app, SecretKey& from, SecretKey& trustor,
 
 TransactionFramePtr
 createCreateAccountTx(Hash const& networkID, SecretKey& from, SecretKey& to,
-                      SequenceNumber seq, int64_t amount)
+                      SequenceNumber seq, int64_t amount, AccountType accountType, Asset* asset)
 {
     Operation op;
     op.body.type(CREATE_ACCOUNT);
     op.body.createAccountOp().destination = to.getPublicKey();
+	op.body.createAccountOp().body.accountType(accountType);
+	if (accountType == ACCOUNT_SCRATCH_CARD && asset != nullptr)
+	{
+		op.body.createAccountOp().body.scratchCard().amount = amount;
+		op.body.createAccountOp().body.scratchCard().asset = *asset;
+	}
 
     return transactionFromOperation(networkID, from, seq, op);
 }
 
 void
 applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
-                     SequenceNumber seq, int64_t amount,
-                     CreateAccountResultCode result)
+                     SequenceNumber seq, int64_t amount, SecretKey* signer,
+                     CreateAccountResultCode result, AccountType accountType, Asset* asset)
 {
     TransactionFramePtr txFrame;
 
@@ -404,8 +414,9 @@ applyCreateAccountTx(Application& app, SecretKey& from, SecretKey& to,
 
     fromAccount = loadAccount(from, app);
 
-    txFrame = createCreateAccountTx(app.getNetworkID(), from, to, seq, amount);
-
+    txFrame = createCreateAccountTx(app.getNetworkID(), from, to, seq, amount, accountType, asset);
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
@@ -495,12 +506,14 @@ applyPaymentTx(Application& app, SecretKey& from, SecretKey& to,
 void
 applyChangeTrust(Application& app, SecretKey& from, SecretKey& to,
                  SequenceNumber seq, std::string const& assetCode,
-                 int64_t limit, ChangeTrustResultCode result)
+                 int64_t limit, ChangeTrustResultCode result, SecretKey* signer)
 {
     TransactionFramePtr txFrame;
 
     txFrame =
         createChangeTrust(app.getNetworkID(), from, to, seq, assetCode, limit);
+	if (signer)
+		reSignTransaction(*txFrame, *signer);
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
@@ -536,14 +549,16 @@ makeAsset(SecretKey& issuer, std::string const& code)
 
 PaymentResult
 applyCreditPaymentTx(Application& app, SecretKey& from, SecretKey& to,
-                     Asset& ci, SequenceNumber seq, int64_t amount, OperationFee* fee,
+                     Asset& ci, SequenceNumber seq, int64_t amount, SecretKey* signer, OperationFee* fee,
                      PaymentResultCode result)
 {
     TransactionFramePtr txFrame;
 
     txFrame =
         createCreditPaymentTx(app.getNetworkID(), from, to, ci, seq, amount, fee);
-
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
+    
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
@@ -587,14 +602,15 @@ createPathPaymentTx(Hash const& networkID, SecretKey& from, SecretKey& to,
 PathPaymentResult
 applyPathPaymentTx(Application& app, SecretKey& from, SecretKey& to,
                    Asset const& sendCur, int64_t sendMax, Asset const& destCur,
-                   int64_t destAmount, SequenceNumber seq, OperationFee* fee, 
+                   int64_t destAmount, SequenceNumber seq, SecretKey* signer, OperationFee* fee,
                    PathPaymentResultCode result, std::vector<Asset>* path)
 {
     TransactionFramePtr txFrame;
 
     txFrame = createPathPaymentTx(app.getNetworkID(), from, to, sendCur,
                                   sendMax, destCur, destAmount, seq, fee, path);
-
+    if (signer)
+        reSignTransaction(*txFrame, *signer);
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
     applyCheck(txFrame, delta, app);
@@ -838,22 +854,22 @@ applyInflation(Application& app, SecretKey& from, SequenceNumber seq,
 }
 
 TransactionFramePtr
-createAccountMerge(Hash const& networkID, SecretKey& source, SecretKey& dest,
-                   SequenceNumber seq)
+createAccountMerge(Hash const& networkID, SecretKey& signer, SecretKey& source, SecretKey& dest, SequenceNumber seq)
 {
     Operation op;
     op.body.type(ACCOUNT_MERGE);
     op.body.destination() = dest.getPublicKey();
+    op.sourceAccount.activate() = source.getPublicKey();
 
-    return transactionFromOperation(networkID, source, seq, op);
+
+    return transactionFromOperation(networkID, signer, seq, op);
 }
 
 void
-applyAccountMerge(Application& app, SecretKey& source, SecretKey& dest,
-                  SequenceNumber seq, AccountMergeResultCode targetResult)
+applyAccountMerge(Application& app, SecretKey& signer, SecretKey& source, SecretKey& dest, SequenceNumber seq, AccountMergeResultCode targetResult)
 {
     TransactionFramePtr txFrame =
-        createAccountMerge(app.getNetworkID(), source, dest, seq);
+        createAccountMerge(app.getNetworkID(), signer, source, dest, seq);
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
@@ -903,6 +919,71 @@ applyManageData( Application& app,
             REQUIRE(dataFrame == nullptr);
         }
     } 
+}
+
+TransactionFramePtr createAdminOp(Hash const& networkID, SecretKey& source,
+	SecretKey& signer, std::string& data, SequenceNumber seq) 
+{
+	Operation op;
+	op.body.type(ADMINISTRATIVE);
+	op.body.adminOp().opData = data;
+	auto tx = transactionFromOperation(networkID, source, seq, op);
+	tx->getEnvelope().signatures.clear();
+	tx->addSignature(signer);
+	return tx;
+}
+
+void applyAdminOp(
+	Application& app, SecretKey& source,
+	SecretKey& signer, std::string& data, SequenceNumber seq,
+	AdministrativeResultCode targetResult)
+{
+	TransactionFramePtr txFrame =
+		createAdminOp(app.getNetworkID(), source, signer, data, seq);
+
+	LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
+		app.getDatabase());
+	applyCheck(txFrame, delta, app);
+
+	REQUIRE(AdministrativeOpFrame::getInnerCode(
+		txFrame->getResult().result.results()[0]) == targetResult);
+}
+
+TransactionFramePtr createPaymentReversalOp(Hash const& networkID, SecretKey& source, SequenceNumber seq,
+	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount)
+{
+	Operation op;
+	op.body.type(PAYMENT_REVERSAL);
+	PaymentReversalOp& reversal = op.body.paymentReversalOp();
+	reversal.paymentID = paymentID;
+	reversal.paymentSource = paymentSource.getPublicKey();
+	reversal.asset = asset;
+	reversal.amount = amount;
+	reversal.commissionAmount = commissionAmount;
+	auto tx = transactionFromOperation(networkID, source, seq, op);
+	return tx;
+}
+
+void applyPaymentReversalOp(Application& app, SecretKey& source, SequenceNumber seq,
+	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount,
+	PaymentReversalResultCode targetResult)
+{
+	TransactionFramePtr txFrame =
+		createPaymentReversalOp(app.getNetworkID(), source, seq, paymentID, paymentSource, asset, amount, commissionAmount);
+
+	LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
+		app.getDatabase());
+	applyCheck(txFrame, delta, app);
+
+	REQUIRE(PaymentReversalOpFrame::getInnerCode(
+		txFrame->getResult().result.results()[0]) == targetResult);
+
+	if (targetResult == PAYMENT_REVERSAL_SUCCESS) {
+		LedgerKey key;
+		key.type(REVERSED_PAYMENT);
+		key.reversedPayment().rID = paymentID;
+		REQUIRE(ReversedPaymentFrame::exists(app.getDatabase(), key));
+	}
 }
 
 

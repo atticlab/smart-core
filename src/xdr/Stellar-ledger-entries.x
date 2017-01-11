@@ -11,6 +11,7 @@ typedef PublicKey AccountID;
 typedef opaque Thresholds[4];
 typedef string string32<32>;
 typedef string string64<64>;
+typedef string longString<>;
 typedef uint64 SequenceNumber;
 typedef opaque DataValue<64>; 
 
@@ -22,7 +23,9 @@ enum AccountType
     ACCOUNT_DISTRIBUTION_AGENT = 3,
     ACCOUNT_SETTLEMENT_AGENT = 4,
     ACCOUNT_EXCHANGE_AGENT = 5,
-    ACCOUNT_BANK = 6
+    ACCOUNT_BANK = 6,
+    ACCOUNT_SCRATCH_CARD = 7,
+    ACCOUNT_COMMISSION = 9
 };
 
 enum SignerType
@@ -83,7 +86,8 @@ enum LedgerEntryType
     ACCOUNT = 0,
     TRUSTLINE = 1,
     OFFER = 2,
-    DATA = 3
+    DATA = 3,
+	REVERSED_PAYMENT = 4
 };
 
 struct Signer
@@ -231,6 +235,22 @@ struct DataEntry
     ext;
 };
 
+/* ReversedPaymentEntry
+    Reversed payment data.
+*/
+struct ReversedPaymentEntry
+{
+    int64 rID;       // id of reversed payment
+
+    // reserved for future use
+    union switch (int v)
+    {
+    case 0:
+        void;
+    }
+    ext;
+};
+
 
 struct LedgerEntry
 {
@@ -246,6 +266,8 @@ struct LedgerEntry
         OfferEntry offer;
     case DATA:
         DataEntry data;
+	case REVERSED_PAYMENT:
+		ReversedPaymentEntry reversedPayment;
     }
     data;
 

@@ -7,6 +7,7 @@
 #include <memory>
 #include "ledger/LedgerManager.h"
 #include "ledger/AccountFrame.h"
+#include "ledger/TrustFrame.h"
 #include "overlay/StellarXDR.h"
 #include "util/types.h"
 
@@ -31,19 +32,21 @@ class OperationFrame
     AccountFrame::pointer mSourceAccount;
     OperationResult& mResult;
     OperationFee* mFee;
+	std::vector<Signer> mUsedSigners;
 
-    bool checkSignature() const;
+    bool checkSignature();
 
     virtual bool doCheckValid(Application& app) = 0;
     virtual bool doApply(Application& app, LedgerDelta& delta,
                          LedgerManager& ledgerManager) = 0;
     virtual int32_t getNeededThreshold() const;
-    bool checkBankSigned(Application& app);
 
   public:
     static std::shared_ptr<OperationFrame>
     makeHelper(Operation const& op, OperationResult& res, OperationFee* fee,
                TransactionFrame& parentTx);
+	static TrustFrame::pointer
+		createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, TransactionFrame& parentTx, AccountFrame::pointer account, Asset const& asset);
 
     OperationFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                    TransactionFrame& parentTx);
@@ -77,9 +80,10 @@ class OperationFrame
     }
     OperationResultCode getResultCode() const;
 
-    bool checkValid(Application& app, LedgerDelta* delta = nullptr);
+    virtual bool checkValid(Application& app, LedgerDelta* delta = nullptr);
 
     bool apply(LedgerDelta& delta, Application& app);
+
 
     Operation const&
     getOperation() const

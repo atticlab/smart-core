@@ -13,6 +13,7 @@
 #include "TxTests.h"
 #include "transactions/TransactionFrame.h"
 #include "ledger/LedgerDelta.h"
+#include "crypto/SHA.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -28,7 +29,10 @@ TEST_CASE("set options", "[tx][setoptions]")
 {
     using xdr::operator==;
 
-    Config const& cfg = getTestConfig();
+    Config cfg = getTestConfig();
+	auto commissionPass = "(VVV)(^,,,^)(VVV)";
+	auto commissionAccount = SecretKey::fromSeed(sha256(commissionPass));
+	cfg.BANK_COMMISSION_KEY = commissionAccount.getPublicKey();
 
     VirtualClock clock;
     Application::pointer appPtr = Application::create(clock, cfg);
@@ -40,9 +44,11 @@ TEST_CASE("set options", "[tx][setoptions]")
     SecretKey a1 = getAccount("A");
 
     SequenceNumber rootSeq = getAccountSeqNum(root, app) + 1;
+	SecretKey adminSignerKP = getAccount("admin_signer");
+	auto adminSigner = Signer(adminSignerKP.getPublicKey(), 100, SIGNER_ADMIN);
+	applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr, nullptr, &adminSigner, nullptr);
 
-    applyCreateAccountTx(app, root, a1, rootSeq++,
-                         app.getLedgerManager().getMinBalance(0) + 1000);
+    applyCreateAccountTx(app, root, a1, rootSeq++, 0, &adminSignerKP);
 
     SequenceNumber a1seq = getAccountSeqNum(a1, app) + 1;
 
@@ -58,24 +64,52 @@ TEST_CASE("set options", "[tx][setoptions]")
         th.medThreshold = make_optional<uint8_t>(10);
         th.highThreshold = make_optional<uint8_t>(100);
 
-        SECTION("insufficient balance")
-        {
-            applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr, &th,
-                            &sk1, nullptr, SET_OPTIONS_LOW_RESERVE);
-        }
-
         SECTION("can't use master key as alternate signer")
         {
             Signer sk(a1.getPublicKey(), 100, SIGNER_GENERAL);
             applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
                             nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER);
         }
-
+		SECTION("Given emission signer")
+		{
+			auto b1 = getAccount("b1");
+			Signer sk(b1.getPublicKey(), 100, SIGNER_EMISSION);
+			SECTION("Can't add if not bank")
+			{
+				applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
+			}
+			SECTION("Can add if bank")
+			{
+				applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+				// or commission account with type BANK
+				auto commissionSeq = getAccountSeqNum(commissionAccount, app) + 1;
+				applySetOptions(app, commissionAccount, commissionSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+			}
+		}
+		SECTION("Given admin signer")
+		{
+			auto b1 = getAccount("b1");
+			Signer sk(b1.getPublicKey(), 100, SIGNER_ADMIN);
+			SECTION("Can't add if not bank")
+			{
+				applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr, SET_OPTIONS_BAD_SIGNER_TYPE);
+			}
+			SECTION("Can add if bank")
+			{
+				applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+				// or commission account with type BANK
+				auto commissionSeq = getAccountSeqNum(commissionAccount, app) + 1;
+				applySetOptions(app, commissionAccount, commissionSeq++, nullptr, nullptr, nullptr,
+					nullptr, &sk, nullptr);
+			}
+		}
         SECTION("multiple signers")
         {
-            // add some funds
-            applyPaymentTx(app, root, a1, rootSeq++,
-                           app.getLedgerManager().getMinBalance(2));
 
             applySetOptions(app, a1, a1seq++, nullptr, nullptr, nullptr, &th,
                             &sk1, nullptr);

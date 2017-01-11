@@ -97,8 +97,6 @@ class ApplicationImpl : public Application
 
 	virtual AccountID const& getIssuer() const override;
 
-	virtual bool isAnonymous(Asset const& asset) const override;
-
   private:
     VirtualClock& mVirtualClock;
     Config mConfig;

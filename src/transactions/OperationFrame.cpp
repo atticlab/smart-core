@@ -21,6 +21,8 @@
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/SetOptionsOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
+#include "transactions/AdministrativeOpFrame.h"
+#include "transactions/PaymentReversalOpFrame.h"
 #include "database/Database.h"
 
 #include "medida/meter.h"
@@ -59,7 +61,11 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationF
         return shared_ptr<OperationFrame>(new InflationOpFrame(op, res, fee, tx));
     case MANAGE_DATA:
         return shared_ptr<OperationFrame>(new ManageDataOpFrame(op, res, fee, tx));
-
+	case ADMINISTRATIVE:
+		return shared_ptr<OperationFrame>(new AdministrativeOpFrame(op, res, fee, tx));
+	case PAYMENT_REVERSAL:
+		return shared_ptr<OperationFrame>(new PaymentReversalOpFrame(op, res, fee, tx));
+			
     default:
         ostringstream err;
         err << "Unknown Tx type: " << op.body.type();
@@ -89,17 +95,13 @@ OperationFrame::apply(LedgerDelta& delta, Application& app)
 int32_t
 OperationFrame::getNeededThreshold() const
 {
-    return mSourceAccount->getMediumThreshold();
+	return mSourceAccount->getMediumThreshold();
 }
-    
-    bool OperationFrame::checkBankSigned(Application& app){
-        return mParentTx.checkSignatureAgainst(app.getConfig().BANK_MASTER_KEY);
-    }
 
 bool
-OperationFrame::checkSignature() const
+OperationFrame::checkSignature()
 {
-    return mParentTx.checkSignature(*mSourceAccount, getNeededThreshold());
+    return mParentTx.checkSignature(*mSourceAccount, getNeededThreshold(), &mUsedSigners);
 }
 
 AccountID const&
@@ -169,4 +171,54 @@ OperationFrame::checkValid(Application& app, LedgerDelta* delta)
 
     return doCheckValid(app);
 }
+
+TrustFrame::pointer
+OperationFrame::createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, TransactionFrame& parentTx, AccountFrame::pointer account, Asset const& asset)
+{
+	// build a changeTrustOp
+	Operation op;
+	op.sourceAccount.activate() = account->getID();
+	op.body.type(CHANGE_TRUST);
+	ChangeTrustOp& caOp = op.body.changeTrustOp();
+	caOp.limit = INT64_MAX;
+	caOp.line = asset;
+
+	OperationResult opRes;
+	opRes.code(opINNER);
+	opRes.tr().type(CHANGE_TRUST);
+
+	//no need to take fee twice
+	OperationFee fee;
+	fee.type(OperationFeeType::opFEE_NONE);
+
+	ChangeTrustOpFrame changeTrust(op, opRes, &fee, parentTx);
+	changeTrust.setSourceAccountPtr(account);
+
+	// create trust line
+	if (!changeTrust.doCheckValid(app) ||
+		!changeTrust.doApply(app, delta, ledgerManager))
+	{
+		if (changeTrust.getResultCode() != opINNER)
+		{
+			throw std::runtime_error("Unexpected error code from changeTrust");
+		}
+		switch (ChangeTrustOpFrame::getInnerCode(changeTrust.getResult()))
+		{
+		case CHANGE_TRUST_NO_ISSUER:
+		case CHANGE_TRUST_LOW_RESERVE:
+			return nullptr;
+		case CHANGE_TRUST_MALFORMED:
+			app.getMetrics().NewMeter({ "op", "failure", "malformed-change-trust-op" }, "operation").Mark();
+			throw std::runtime_error("Failed to create trust line - change trust line op is malformed");
+		case CHANGE_TRUST_INVALID_LIMIT:
+			app.getMetrics().NewMeter({ "op", "failure", "invalid-limit-change-trust-op" }, "operation").Mark();
+			throw std::runtime_error("Failed to create trust line - invalid limit");
+		default:
+			throw std::runtime_error("Unexpected error code from change trust line");
+		}
+	}
+	return changeTrust.getTrustLine();
+}
+
+
 }

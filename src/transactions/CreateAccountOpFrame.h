@@ -19,6 +19,9 @@ class CreateAccountOpFrame : public OperationFrame
     CreateAccountOp const& mCreateAccount;
 
 	AccountFrame::pointer mDestAccount;
+    bool doApplyCreateScratch(Application& app, LedgerDelta& delta,
+                                               LedgerManager& ledgerManager);
+    
 
   public:
     CreateAccountOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,

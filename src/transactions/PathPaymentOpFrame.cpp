@@ -26,9 +26,11 @@ using xdr::operator==;
 PathPaymentOpFrame::PathPaymentOpFrame(Operation const& op,
                                        OperationResult& res,
                                        OperationFee* fee,
-                                       TransactionFrame& parentTx)
+                                       TransactionFrame& parentTx,
+                                       bool isCreate)
     : OperationFrame(op, res, fee, parentTx)
     , mPathPayment(mOperation.body.pathPaymentOp())
+    , mIsCreate(isCreate)
 {
 }
 
@@ -70,7 +72,7 @@ PathPaymentOpFrame::createDestination(Application& app, LedgerManager& ledgerMan
 	op.body.type(CREATE_ACCOUNT);
 	CreateAccountOp& caOp = op.body.createAccountOp();
 	caOp.destination = mPathPayment.destination;
-	caOp.accountType = ACCOUNT_ANONYMOUS_USER;
+	caOp.body.accountType(ACCOUNT_ANONYMOUS_USER);
 
 	OperationResult opRes;
 	opRes.code(opINNER);
@@ -116,57 +118,6 @@ PathPaymentOpFrame::createDestination(Application& app, LedgerManager& ledgerMan
 	return createAccount.getDestAccount();
 }
 
-TrustFrame::pointer 
-PathPaymentOpFrame::createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, AccountFrame::pointer account,
-	Asset const& asset)
-{
-	// build a changeTrustOp
-	Operation op;
-	op.sourceAccount.activate() = account->getID();
-	op.body.type(CHANGE_TRUST);
-	ChangeTrustOp& caOp = op.body.changeTrustOp();
-	caOp.limit = INT64_MAX;
-	caOp.line = asset;
-
-	OperationResult opRes;
-	opRes.code(opINNER);
-	opRes.tr().type(CHANGE_TRUST);
-
-	//no need to take fee twice
-	OperationFee fee;
-	fee.type(OperationFeeType::opFEE_NONE);
-
-	ChangeTrustOpFrame changeTrust(op, opRes, &fee, mParentTx);
-	changeTrust.setSourceAccountPtr(account);
-
-	// create trust line
-	if (!changeTrust.doCheckValid(app) ||
-		!changeTrust.doApply(app, delta, ledgerManager))
-	{
-		if (changeTrust.getResultCode() != opINNER)
-		{
-			throw std::runtime_error("Unexpected error code from changeTrust");
-		}
-		switch (ChangeTrustOpFrame::getInnerCode(changeTrust.getResult()))
-		{
-		case CHANGE_TRUST_NO_ISSUER:
-		case CHANGE_TRUST_LOW_RESERVE:
-			return nullptr;
-		case CHANGE_TRUST_MALFORMED:
-			app.getMetrics().NewMeter({ "op-path-payment", "failure", "malformed-change-trust-op" },
-				"operation").Mark();
-			throw std::runtime_error("Failed to create trust line - change trust line op is malformed");
-		case CHANGE_TRUST_INVALID_LIMIT:
-			app.getMetrics().NewMeter({ "op-path-payment", "failure", "invalid-limit-change-trust-op" },
-				"operation").Mark();
-			throw std::runtime_error("Failed to create trust line - invalid limit");
-		default:
-			throw std::runtime_error("Unexpected error code from change trust line");
-		}
-	}
-	return changeTrust.getTrustLine();
-}
-
 bool
 PathPaymentOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
@@ -191,57 +142,47 @@ PathPaymentOpFrame::doApply(Application& app,
     fullPath.insert(fullPath.end(), mPathPayment.path.begin(),
                     mPathPayment.path.end());
 
-    bool bypassIssuerCheck = false;
-
-    // if the payment doesn't involve intermediate accounts
-    // and the destination is the issuer we don't bother
-    // checking if the destination account even exist
-    // so that it's always possible to send credits back to its issuer
-    bypassIssuerCheck = (curB.type() != ASSET_TYPE_NATIVE) &&
-                        (fullPath.size() == 1) &&
-                        (mPathPayment.sendAsset == mPathPayment.destAsset) &&
-                        (getIssuer(curB) == mPathPayment.destination);
-
+    
     AccountFrame::pointer destination;
 	AccountFrame::pointer commissionDestination;
 
 	commissionDestination = AccountFrame::loadAccount(delta, app.getConfig().BANK_COMMISSION_KEY, db);
 	assert(!!commissionDestination);
 
-    if (!bypassIssuerCheck)
+
+    destination =
+    AccountFrame::loadAccount(delta, mPathPayment.destination, db);
+    
+    if (!destination)
     {
-        destination =
-            AccountFrame::loadAccount(delta, mPathPayment.destination, db);
-
-        if (!destination)
+        destination = createDestination(app, ledgerManager, delta);
+        bool destinationCreated = !!destination;
+        // if destination was created and asset is not native - create trust line
+        if (destinationCreated && mPathPayment.destAsset.type() != ASSET_TYPE_NATIVE)
         {
-			bool destinationCreated = false;
-
-			// if destination does not exists and asset is allowed of anonymous users - create one with trust line
-			if (app.isAnonymous(mPathPayment.destAsset))
-			{
-				destination = createDestination(app, ledgerManager, delta);
-				destinationCreated = !!destination;
-				// if destination was created and asset is not native - create trust line
-				if (destinationCreated && mPathPayment.destAsset.type() != ASSET_TYPE_NATIVE)
-				{
-					auto line = createTrustLine(app, ledgerManager, delta, destination, mPathPayment.destAsset);
-					destinationCreated = !!line;
-				}
-			}
-			if (!destinationCreated)
-			{
-				app.getMetrics().NewMeter({ "op-path-payment", "failure", "no-destination" },
-					"operation").Mark();
-				innerResult().code(PATH_PAYMENT_NO_DESTINATION);
-				return false;
-			}
+            auto line = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, destination, mPathPayment.destAsset);
+            destinationCreated = !!line;
+        }
+        if (!destinationCreated)
+        {
+            app.getMetrics().NewMeter({ "op-path-payment", "failure", "no-destination" },
+                                      "operation").Mark();
+            innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+            return false;
         }
     }
 
     // update last balance in the chain
     if (curB.type() == ASSET_TYPE_NATIVE)
     {
+        if (destination->getAccount().accountType == ACCOUNT_SCRATCH_CARD)
+        {
+            app.getMetrics().NewMeter({ "op-path-payment", "failure", "destination-scratch-card" },
+                                      "operation").Mark();
+            innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+            return false;
+        }
+
         destination->getAccount().balance += curBReceived;
 		commissionDestination->getAccount().balance += curBCommission;
         destination->storeChange(delta, db);
@@ -251,39 +192,44 @@ PathPaymentOpFrame::doApply(Application& app,
     {
         TrustFrame::pointer destLine;
 
-        if (bypassIssuerCheck)
+        auto tlI = TrustFrame::loadTrustLineIssuer(mPathPayment.destination,
+                                                   curB, db, delta);
+        if (!tlI.second)
         {
-            destLine = TrustFrame::loadTrustLine(mPathPayment.destination, curB,
-                                                 db, &delta);
-        }
-        else
-        {
-            auto tlI = TrustFrame::loadTrustLineIssuer(mPathPayment.destination,
-                                                       curB, db, delta);
-            if (!tlI.second)
-            {
-                app.getMetrics().NewMeter({"op-path-payment", "failure", "no-issuer"},
-                                 "operation").Mark();
-                innerResult().code(PATH_PAYMENT_NO_ISSUER);
-                innerResult().noIssuer() = curB;
-                return false;
-            }
-            destLine = tlI.first;
-        }
-
-        if (!destLine)
-        {
-            app.getMetrics().NewMeter({"op-path-payment", "failure", "no-trust"},
-                             "operation").Mark();
-            innerResult().code(PATH_PAYMENT_NO_TRUST);
+            app.getMetrics().NewMeter({"op-path-payment", "failure", "no-issuer"},
+                                      "operation").Mark();
+            innerResult().code(PATH_PAYMENT_NO_ISSUER);
+            innerResult().noIssuer() = curB;
             return false;
         }
+        destLine = tlI.first;
+        
+        if(!destLine)
+        {
+            destLine = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, destination, mPathPayment.destAsset);   
+        }
+
+//        if (!destLine)
+//        {
+//            app.getMetrics().NewMeter({"op-path-payment", "failure", "no-trust"},
+//                             "operation").Mark();
+//            innerResult().code(PATH_PAYMENT_NO_TRUST);
+//            return false;
+//        }
 
         if (!destLine->isAuthorized())
         {
             app.getMetrics().NewMeter({"op-path-payment", "failure", "not-authorized"},
                              "operation").Mark();
             innerResult().code(PATH_PAYMENT_NOT_AUTHORIZED);
+            return false;
+        }
+
+        if (destination->getAccount().accountType == ACCOUNT_SCRATCH_CARD && !mIsCreate)
+        {
+            app.getMetrics().NewMeter({ "op-path-payment", "failure", "destination-scratch-card" },
+                                      "operation").Mark();
+            innerResult().code(PATH_PAYMENT_NO_DESTINATION);
             return false;
         }
 
@@ -423,24 +369,28 @@ PathPaymentOpFrame::doApply(Application& app,
     else
     {
         TrustFrame::pointer sourceLineFrame;
-        if (bypassIssuerCheck)
+        auto tlI =
+        TrustFrame::loadTrustLineIssuer(getSourceID(), curB, db, delta);
+        if (!tlI.second)
         {
-            sourceLineFrame =
-                TrustFrame::loadTrustLine(getSourceID(), curB, db, &delta);
+            app.getMetrics().NewMeter({"op-path-payment", "failure", "no-issuer"},
+                                      "operation").Mark();
+            innerResult().code(PATH_PAYMENT_NO_ISSUER);
+            innerResult().noIssuer() = curB;
+            return false;
+        }
+        bool sourceLineExists = !!tlI.first;
+        if (!sourceLineExists)
+        {
+            if (getSourceID() == getIssuer(curB))
+            {
+                auto line = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, mSourceAccount, curB);
+                sourceLineExists = !!line;
+                sourceLineFrame = line;
+            }
         }
         else
         {
-            auto tlI =
-                TrustFrame::loadTrustLineIssuer(getSourceID(), curB, db, delta);
-
-            if (!tlI.second)
-            {
-                app.getMetrics().NewMeter({"op-path-payment", "failure", "no-issuer"},
-                                 "operation").Mark();
-                innerResult().code(PATH_PAYMENT_NO_ISSUER);
-                innerResult().noIssuer() = curB;
-                return false;
-            }
             sourceLineFrame = tlI.first;
         }
 

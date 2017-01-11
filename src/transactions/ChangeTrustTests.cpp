@@ -84,7 +84,7 @@ TEST_CASE("change trust", "[tx][changetrust]")
 
             applyChangeTrust(app, root, gateway, rootSeq++, "IDR", 100);
             // Merge gateway back into root (the trustline still exists)
-            applyAccountMerge(app, gateway, root, gateway_seq++);
+            applyAccountMerge(app, root, gateway, root, rootSeq++);
 
             applyChangeTrust(app, root, gateway, rootSeq++, "IDR", 99,
                              CHANGE_TRUST_NO_ISSUER);

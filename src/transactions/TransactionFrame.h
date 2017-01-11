@@ -38,7 +38,7 @@ class TransactionFrame
     TransactionResult mResult;
 
     AccountFrame::pointer mSigningAccount;
-    std::vector<bool> mUsedSignatures;
+	std::vector<bool> mUsedSignatures;
 
     void clearCached();
     Hash const& mNetworkID;     // used to change the way we compute signatures
@@ -132,9 +132,7 @@ class TransactionFrame
 
     void addSignature(SecretKey const& secretKey);
 
-    bool checkSignature(AccountFrame& account, int32_t neededWeight);
-    
-    bool checkSignatureAgainst(const PublicKey publicKey);
+    bool checkSignature(AccountFrame& account, int32_t neededWeight, std::vector<Signer>* usedSigners);
     
     bool checkValid(Application& app, SequenceNumber current);
 

@@ -176,7 +176,7 @@ LedgerManagerImpl::startNewLedger()
     LedgerDelta delta(genesisHeader, getDatabase());
     masterAccount.storeAdd(delta, this->getDatabase());
     if (!(masterAccount.getID() == commissionAccount.getID())){
-        commissionAccount.getAccount().accountType = ACCOUNT_BANK;
+        commissionAccount.getAccount().accountType = ACCOUNT_COMMISSION;
         commissionAccount.storeAdd(delta, this->getDatabase());
     }
     delta.commit();
