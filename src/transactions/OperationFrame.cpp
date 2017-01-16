@@ -19,6 +19,7 @@
 #include "transactions/MergeOpFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/PaymentOpFrame.h"
+//#include "transactions/ExternalPaymentOpFrame.h"
 #include "transactions/SetOptionsOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
 #include "transactions/AdministrativeOpFrame.h"
@@ -65,7 +66,9 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationF
 		return shared_ptr<OperationFrame>(new AdministrativeOpFrame(op, res, fee, tx));
 	case PAYMENT_REVERSAL:
 		return shared_ptr<OperationFrame>(new PaymentReversalOpFrame(op, res, fee, tx));
-			
+//    case EXTERNAL_PAYMENT:
+//        return shared_ptr<OperationFrame>(new ExternalPaymentOpFrame(op, res, fee, tx));
+
     default:
         ostringstream err;
         err << "Unknown Tx type: " << op.body.type();
@@ -131,7 +134,7 @@ OperationFrame::getResultCode() const
 bool
 OperationFrame::checkValid(Application& app, LedgerDelta* delta)
 {
-    
+
     bool forApply = (delta != nullptr);
     if (!loadAccount(delta, app.getDatabase()))
     {

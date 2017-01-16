@@ -26,8 +26,9 @@ enum OperationType
     ACCOUNT_MERGE = 8,
     INFLATION = 9,
     MANAGE_DATA = 10,
-	ADMINISTRATIVE = 11,
-	PAYMENT_REVERSAL = 12
+    ADMINISTRATIVE = 11,
+    PAYMENT_REVERSAL = 12,
+    EXTERNAL_PAYMENT = 13
 };
 
 /* CreateAccount
@@ -39,9 +40,9 @@ Result: CreateAccountResult
 
 */
 
-struct ScratchCard 
+struct ScratchCard
 {
-	Asset asset;           // what they end up with
+    Asset asset;           // what they end up with
     int64 amount;          // amount they end up with
 };
 
@@ -52,8 +53,8 @@ struct CreateAccountOp
     {
     case ACCOUNT_SCRATCH_CARD:
         ScratchCard scratchCard;
-	default:
-		void;
+    default:
+        void;
     }
     body;
 
@@ -72,6 +73,19 @@ struct PaymentOp
     AccountID destination; // recipient of the payment
     Asset asset;           // what they end up with
     int64 amount;          // amount they end up with
+};
+
+/* External Payment
+    Send an amount in specified asset to a destination account to another ledger.
+    Result: PaymentResult
+*/
+struct ExternalPaymentOp
+{
+    AccountID exchangeAgent;        // exchange agent account id
+    AccountID destinationBank;      // recipient bank of the payment
+    AccountID destinationAccount;   // recipient account of the payment
+    Asset asset;                    // what they end up with
+    int64 amount;                   // amount they end up with
 };
 
 /* PathPayment
@@ -223,8 +237,8 @@ Result: InflationResult
 */
 
 /* ManageData
-    Adds, Updates, or Deletes a key value pair associated with a particular 
-	account.
+    Adds, Updates, or Deletes a key value pair associated with a particular
+    account.
 
     Threshold: med
 
@@ -233,13 +247,13 @@ Result: InflationResult
 
 struct ManageDataOp
 {
-    string64 dataName; 
+    string64 dataName;
     DataValue* dataValue;   // set to null to clear
 };
 
 struct AdministrativeOp
 {
-	longString opData;
+    longString opData;
 };
 
 /* Reversal Payment
@@ -255,8 +269,8 @@ struct PaymentReversalOp
     AccountID paymentSource; // sender of payment to be reversed
     Asset asset;             // what they end up with
     int64 amount;            // amount they end up with
-	int64 commissionAmount;   // amount of commission to be returned
-	int64 paymentID;         // id of payment to be reversed
+    int64 commissionAmount;   // amount of commission to be returned
+    int64 paymentID;         // id of payment to be reversed
 };
 
 /* An operation is the lowest unit of work that a transaction does */
@@ -291,10 +305,12 @@ struct Operation
         void;
     case MANAGE_DATA:
         ManageDataOp manageDataOp;
-	case ADMINISTRATIVE:
-		AdministrativeOp adminOp;
-	case PAYMENT_REVERSAL:
-		PaymentReversalOp paymentReversalOp;
+    case ADMINISTRATIVE:
+        AdministrativeOp adminOp;
+    case PAYMENT_REVERSAL:
+        PaymentReversalOp paymentReversalOp;
+    case EXTERNAL_PAYMENT:
+        ExternalPaymentOp externalPaymentOp;
     }
     body;
 };
@@ -378,15 +394,15 @@ case opFEE_CHARGED:
     {
         Asset asset;
         int64 amountToCharge;
-		int64* percentFee;
-		int64* flatFee;
-		// reserved for future use
-		union switch (int v)
-		{
-		case 0:
-			void;
-		}
-		ext;
+        int64* percentFee;
+        int64* flatFee;
+        // reserved for future use
+        union switch (int v)
+        {
+        case 0:
+            void;
+        }
+        ext;
     } fee;
 };
 
@@ -395,7 +411,7 @@ struct TransactionEnvelope
 {
     Transaction tx;
     DecoratedSignature signatures<20>;
-	OperationFee operationFees<100>; // actual fees charged for the transaction
+    OperationFee operationFees<100>; // actual fees charged for the transaction
 };
 
 /* Operation Results section */
@@ -742,17 +758,17 @@ enum PaymentReversalResultCode
     PAYMENT_REVERSAL_PAYMENT_SENDER_NOT_AUTHORIZED = -6, // destination not authorized to hold asset
     PAYMENT_REVERSAL_PAYMENT_SENDER_LINE_FULL = -7,      // destination would go above their limit
     PAYMENT_REVERSAL_NO_ISSUER = -8,                     // missing issuer on asset
-	PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED = -9,        // not enough funds in commission account
-	PAYMENT_REVERSAL_PAYMENT_EXPIRED = -10,              // payment to old to reverse 
-	PAYMENT_REVERSAL_PAYMENT_DOES_NOT_EXISTS = -11,      // payment with such id does not exists
-	PAYMENT_REVERSAL_INVALID_AMOUNT = -12,               // amount is not equal to amount in payment
-	PAYMENT_REVERSAL_INVALID_COMMISSION = -13,           // commission is not equal to commission in payment
-	PAYMENT_REVERSAL_INVALID_PAYMENT_SENDER = -14,       // payment sender is not equal to source in payment
-	PAYMENT_REVERSAL_INVALID_SOURCE = -15,               // source of reversal is not equal payment destination
-	PAYMENT_REVERSAL_INVALID_ASSET = -16,                // asset is not equal to asset in payment
-	PAYMENT_REVERSAL_MALFORMED = -17,                    // reversal payment is malformed in some way
-	PAYMENT_REVERSAL_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
-	PAYMENT_REVERSAL_ALREADY_REVERSED = -19              // payment already have been reversed
+    PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED = -9,        // not enough funds in commission account
+    PAYMENT_REVERSAL_PAYMENT_EXPIRED = -10,              // payment to old to reverse
+    PAYMENT_REVERSAL_PAYMENT_DOES_NOT_EXISTS = -11,      // payment with such id does not exists
+    PAYMENT_REVERSAL_INVALID_AMOUNT = -12,               // amount is not equal to amount in payment
+    PAYMENT_REVERSAL_INVALID_COMMISSION = -13,           // commission is not equal to commission in payment
+    PAYMENT_REVERSAL_INVALID_PAYMENT_SENDER = -14,       // payment sender is not equal to source in payment
+    PAYMENT_REVERSAL_INVALID_SOURCE = -15,               // source of reversal is not equal payment destination
+    PAYMENT_REVERSAL_INVALID_ASSET = -16,                // asset is not equal to asset in payment
+    PAYMENT_REVERSAL_MALFORMED = -17,                    // reversal payment is malformed in some way
+    PAYMENT_REVERSAL_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
+    PAYMENT_REVERSAL_ALREADY_REVERSED = -19              // payment already have been reversed
 };
 
 union PaymentReversalResult switch (PaymentReversalResultCode code)
@@ -781,6 +797,7 @@ case opINNER:
     case CREATE_ACCOUNT:
         CreateAccountResult createAccountResult;
     case PAYMENT:
+    case EXTERNAL_PAYMENT:
         PaymentResult paymentResult;
     case PATH_PAYMENT:
         PathPaymentResult pathPaymentResult;
@@ -800,10 +817,10 @@ case opINNER:
         InflationResult inflationResult;
     case MANAGE_DATA:
         ManageDataResult manageDataResult;
-	case ADMINISTRATIVE:
-		AdministrativeResult adminResult;
-	case PAYMENT_REVERSAL:
-		PaymentReversalResult paymentReversalResult;
+    case ADMINISTRATIVE:
+        AdministrativeResult adminResult;
+    case PAYMENT_REVERSAL:
+        PaymentReversalResult paymentReversalResult;
     }
     tr;
 default:
