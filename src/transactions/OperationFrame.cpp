@@ -19,7 +19,7 @@
 #include "transactions/MergeOpFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/PaymentOpFrame.h"
-//#include "transactions/ExternalPaymentOpFrame.h"
+#include "transactions/PaymentExternalOpFrame.h"
 #include "transactions/SetOptionsOpFrame.h"
 #include "transactions/ManageDataOpFrame.h"
 #include "transactions/AdministrativeOpFrame.h"
@@ -66,10 +66,11 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationF
 		return shared_ptr<OperationFrame>(new AdministrativeOpFrame(op, res, fee, tx));
 	case PAYMENT_REVERSAL:
 		return shared_ptr<OperationFrame>(new PaymentReversalOpFrame(op, res, fee, tx));
-//    case EXTERNAL_PAYMENT:
-//        return shared_ptr<OperationFrame>(new ExternalPaymentOpFrame(op, res, fee, tx));
+    case EXTERNAL_PAYMENT:
+        return shared_ptr<OperationFrame>(new PaymentExternalOpFrame(op, res, fee, tx));
 
     default:
+        CLOG(DEBUG, "Process") << "operation " << op.body.type() << " is unknown ";
         ostringstream err;
         err << "Unknown Tx type: " << op.body.type();
         throw std::invalid_argument(err.str());
