@@ -29,6 +29,7 @@
 #include "ledger/OfferFrame.h"
 #include "ledger/DataFrame.h"
 #include "ledger/ReversedPaymentFrame.h"
+#include "ledger/RefundedPaymentFrame.h"
 #include "ledger/LedgerDelta.h"
 #include "medida/medida.h"
 #include "lib/util/format.h"
@@ -498,7 +499,7 @@ checkDBAgainstBuckets(medida::MetricsRegistry& metrics,
 
     // Step 3: scan the superbucket, checking each object against the DB and
     // counting objects along the way.
-    uint64_t nAccounts = 0, nTrustLines = 0, nOffers = 0, nData=0, nPaymentReversal = 0;
+    uint64_t nAccounts = 0, nTrustLines = 0, nOffers = 0, nData=0, nPaymentReversal = 0, nPaymentRefunds = 0;
     {
         auto& meter = metrics.NewMeter({"bucket", "checkdb", "object-compare"},
                                        "comparison");
@@ -527,6 +528,9 @@ checkDBAgainstBuckets(medida::MetricsRegistry& metrics,
 				case REVERSED_PAYMENT:
 					++nPaymentReversal;
 					break;
+                case REFUNDED_PAYMENT:
+                    ++nPaymentRefunds;
+                    break;
                 }
                 EntryFrame::checkAgainstDatabase(e.liveEntry(), db);
                 if (meter.count() % 100 == 0)
@@ -545,5 +549,7 @@ checkDBAgainstBuckets(medida::MetricsRegistry& metrics,
     compareSizes("offer", OfferFrame::countObjects(sess), nOffers);
     compareSizes("data", DataFrame::countObjects(sess), nData);
 	compareSizes("reversedPayment", ReversedPaymentFrame::countObjects(sess), nPaymentReversal);
+    compareSizes("refundedPayment", RefundedPaymentFrame::countObjects(sess), nPaymentRefunds);
+
 }
 }

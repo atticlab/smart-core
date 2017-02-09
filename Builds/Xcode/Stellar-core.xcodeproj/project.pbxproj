@@ -123,11 +123,13 @@
 		7F4A4E201C96FA6C009D5F33 /* MergeTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F4A4E191C96FA6C009D5F33 /* MergeTests.cpp */; };
 		7F4A4E211C96FA6C009D5F33 /* OfferTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F4A4E1A1C96FA6C009D5F33 /* OfferTests.cpp */; };
 		7F4A4E221C96FA6C009D5F33 /* PaymentTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F4A4E1B1C96FA6C009D5F33 /* PaymentTests.cpp */; };
+		7F55F0C61E4A307F004A50C1 /* PaymentRefundOpFrame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F55F0C51E4A307F004A50C1 /* PaymentRefundOpFrame.cpp */; };
 		7F63A97A1C68BA73009B81D3 /* InferredQuorum.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A9771C68BA73009B81D3 /* InferredQuorum.cpp */; };
 		7F63A97B1C68BA73009B81D3 /* InferredQuorumTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A9791C68BA73009B81D3 /* InferredQuorumTests.cpp */; };
 		7F63A97F1C68C06A009B81D3 /* BitsetEnumerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A97C1C68C06A009B81D3 /* BitsetEnumerator.cpp */; };
 		7F63A9801C68C06A009B81D3 /* BitsetEnumeratorTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A97E1C68C06A009B81D3 /* BitsetEnumeratorTests.cpp */; };
 		7F63A9821C68C0A1009B81D3 /* FloodTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F63A9811C68C0A1009B81D3 /* FloodTests.cpp */; };
+		7F69A77E1E49D10600493C5E /* RefundedPaymentFrame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7F69A77C1E49D10600493C5E /* RefundedPaymentFrame.cpp */; };
 		7FC9BA371DB68B1A0017FE74 /* AdministrativeOpFrame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FC9BA341DB68B1A0017FE74 /* AdministrativeOpFrame.cpp */; };
 		7FC9BA381DB68B1A0017FE74 /* AdministrativeOpTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FC9BA361DB68B1A0017FE74 /* AdministrativeOpTests.cpp */; };
 		7FDE72AD1E007BE1006780FC /* PaymentReversalOpTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FDE72AA1E007BE1006780FC /* PaymentReversalOpTests.cpp */; };
@@ -497,6 +499,8 @@
 		7F4A4E1A1C96FA6C009D5F33 /* OfferTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = OfferTests.cpp; sourceTree = "<group>"; };
 		7F4A4E1B1C96FA6C009D5F33 /* PaymentTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PaymentTests.cpp; sourceTree = "<group>"; };
 		7F4FFE211BD629DD00029CC8 /* Stellar-core */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "Stellar-core"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7F55F0C41E4A307F004A50C1 /* PaymentRefundOpFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PaymentRefundOpFrame.h; sourceTree = "<group>"; };
+		7F55F0C51E4A307F004A50C1 /* PaymentRefundOpFrame.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PaymentRefundOpFrame.cpp; sourceTree = "<group>"; };
 		7F63A9771C68BA73009B81D3 /* InferredQuorum.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = InferredQuorum.cpp; sourceTree = "<group>"; };
 		7F63A9781C68BA73009B81D3 /* InferredQuorum.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = InferredQuorum.h; sourceTree = "<group>"; };
 		7F63A9791C68BA73009B81D3 /* InferredQuorumTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = InferredQuorumTests.cpp; sourceTree = "<group>"; };
@@ -504,6 +508,8 @@
 		7F63A97D1C68C06A009B81D3 /* BitsetEnumerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BitsetEnumerator.h; sourceTree = "<group>"; };
 		7F63A97E1C68C06A009B81D3 /* BitsetEnumeratorTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BitsetEnumeratorTests.cpp; sourceTree = "<group>"; };
 		7F63A9811C68C0A1009B81D3 /* FloodTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FloodTests.cpp; sourceTree = "<group>"; };
+		7F69A77C1E49D10600493C5E /* RefundedPaymentFrame.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RefundedPaymentFrame.cpp; sourceTree = "<group>"; };
+		7F69A77D1E49D10600493C5E /* RefundedPaymentFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RefundedPaymentFrame.h; sourceTree = "<group>"; };
 		7FC9BA341DB68B1A0017FE74 /* AdministrativeOpFrame.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AdministrativeOpFrame.cpp; sourceTree = "<group>"; };
 		7FC9BA351DB68B1A0017FE74 /* AdministrativeOpFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AdministrativeOpFrame.h; sourceTree = "<group>"; };
 		7FC9BA361DB68B1A0017FE74 /* AdministrativeOpTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AdministrativeOpTests.cpp; sourceTree = "<group>"; };
@@ -699,6 +705,8 @@
 		7F3D4E061BD91DF300B914B6 /* ledger */ = {
 			isa = PBXGroup;
 			children = (
+				7F69A77C1E49D10600493C5E /* RefundedPaymentFrame.cpp */,
+				7F69A77D1E49D10600493C5E /* RefundedPaymentFrame.h */,
 				7FDE72AF1E007D70006780FC /* ReversedPaymentFrame.cpp */,
 				7FDE72B01E007D70006780FC /* ReversedPaymentFrame.h */,
 				7F4A4E131C96FA43009D5F33 /* DataFrame.h */,
@@ -945,6 +953,8 @@
 		7F3D4EB71BD91DF300B914B6 /* transactions */ = {
 			isa = PBXGroup;
 			children = (
+				7F55F0C41E4A307F004A50C1 /* PaymentRefundOpFrame.h */,
+				7F55F0C51E4A307F004A50C1 /* PaymentRefundOpFrame.cpp */,
 				7FDE72AA1E007BE1006780FC /* PaymentReversalOpTests.cpp */,
 				7FDE72AB1E007BE1006780FC /* PaymentReversalOpFrame.cpp */,
 				7FDE72AC1E007BE1006780FC /* PaymentReversalOpFrame.h */,
@@ -1302,6 +1312,7 @@
 				7F3D4F641BDA4D4800B914B6 /* CreateAccountOpFrame.cpp in Sources */,
 				7F3D4F3F1BDA4C7200B914B6 /* LedgerEntryTests.cpp in Sources */,
 				7F3D4F5B1BDA4D0E00B914B6 /* SCPUnitTests.cpp in Sources */,
+				7F55F0C61E4A307F004A50C1 /* PaymentRefundOpFrame.cpp in Sources */,
 				7F3D4F5D1BDA4D3100B914B6 /* CoreTests.cpp in Sources */,
 				7F3D4F581BDA4D0E00B914B6 /* SCP.cpp in Sources */,
 				7F3D4F4D1BDA4C9100B914B6 /* dumpxdr.cpp in Sources */,
@@ -1359,6 +1370,7 @@
 				7F3D4F5A1BDA4D0E00B914B6 /* SCPTests.cpp in Sources */,
 				7F4A4E1F1C96FA6C009D5F33 /* ManageDataTests.cpp in Sources */,
 				7F3D4F721BDA4D4800B914B6 /* SetOptionsTests.cpp in Sources */,
+				7F69A77E1E49D10600493C5E /* RefundedPaymentFrame.cpp in Sources */,
 				7F3D51A81BDBBEF300B914B6 /* Peer.cpp in Sources */,
 				7F3D4F4A1BDA4C9100B914B6 /* ApplicationTests.cpp in Sources */,
 				7F3D51A41BDBBEF300B914B6 /* LoopbackPeer.cpp in Sources */,
