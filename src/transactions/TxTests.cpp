@@ -1016,13 +1016,13 @@ TransactionFramePtr createPaymentRefundOp(Hash const& networkID, SecretKey& sour
         applyCheck(txFrame, delta, app);
         
         REQUIRE(PaymentRefundOpFrame::getInnerCode(
-                                                     txFrame->getResult().result.results()[0]) == targetResult);
+                txFrame->getResult().result.results()[0]) == targetResult);
         
         if (targetResult == REFUND_SUCCESS) {
             LedgerKey key;
             key.type(REFUNDED_PAYMENT);
-            key.reversedPayment().rID = paymentID;
-            REQUIRE(ReversedPaymentFrame::exists(app.getDatabase(), key));
+            key.refundedPayment().rID = paymentID;
+            REQUIRE(RefundedPaymentFrame::exists(app.getDatabase(), key));
         }
     }
 

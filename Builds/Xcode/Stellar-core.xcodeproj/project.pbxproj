@@ -135,6 +135,7 @@
 		7FDE72AD1E007BE1006780FC /* PaymentReversalOpTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FDE72AA1E007BE1006780FC /* PaymentReversalOpTests.cpp */; };
 		7FDE72AE1E007BE1006780FC /* PaymentReversalOpFrame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FDE72AB1E007BE1006780FC /* PaymentReversalOpFrame.cpp */; };
 		7FDE72B11E007D70006780FC /* ReversedPaymentFrame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FDE72AF1E007D70006780FC /* ReversedPaymentFrame.cpp */; };
+		7FF0C68F1E55E210008DB217 /* PaymentRefundOpTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7FF0C68E1E55E210008DB217 /* PaymentRefundOpTests.cpp */; };
 		CE08845C1C6275B900D14032 /* LedgerDeltaTests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE08845A1C6275B900D14032 /* LedgerDeltaTests.cpp */; };
 		CE4F195E1C5F710C0069F558 /* libsodium.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CE4F195D1C5F710C0069F558 /* libsodium.a */; };
 		CEF05EDA1C4A79220050C900 /* HistoryWork.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CEF05ED61C4A79220050C900 /* HistoryWork.cpp */; };
@@ -518,6 +519,7 @@
 		7FDE72AC1E007BE1006780FC /* PaymentReversalOpFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PaymentReversalOpFrame.h; sourceTree = "<group>"; };
 		7FDE72AF1E007D70006780FC /* ReversedPaymentFrame.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ReversedPaymentFrame.cpp; sourceTree = "<group>"; };
 		7FDE72B01E007D70006780FC /* ReversedPaymentFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ReversedPaymentFrame.h; sourceTree = "<group>"; };
+		7FF0C68E1E55E210008DB217 /* PaymentRefundOpTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PaymentRefundOpTests.cpp; sourceTree = "<group>"; };
 		CE08845A1C6275B900D14032 /* LedgerDeltaTests.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LedgerDeltaTests.cpp; sourceTree = "<group>"; };
 		CE4F195D1C5F710C0069F558 /* libsodium.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libsodium.a; path = ../../../../../../usr/local/Cellar/libsodium/1.0.6/lib/libsodium.a; sourceTree = "<group>"; };
 		CEF05ED61C4A79220050C900 /* HistoryWork.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = HistoryWork.cpp; sourceTree = "<group>"; };
@@ -953,6 +955,7 @@
 		7F3D4EB71BD91DF300B914B6 /* transactions */ = {
 			isa = PBXGroup;
 			children = (
+				7FF0C68E1E55E210008DB217 /* PaymentRefundOpTests.cpp */,
 				7F55F0C41E4A307F004A50C1 /* PaymentRefundOpFrame.h */,
 				7F55F0C51E4A307F004A50C1 /* PaymentRefundOpFrame.cpp */,
 				7FDE72AA1E007BE1006780FC /* PaymentReversalOpTests.cpp */,
@@ -1318,6 +1321,7 @@
 				7F3D4F4D1BDA4C9100B914B6 /* dumpxdr.cpp in Sources */,
 				7F3D4F601BDA4D3100B914B6 /* Topologies.cpp in Sources */,
 				7F3D4F4E1BDA4C9100B914B6 /* ExternalQueue.cpp in Sources */,
+				7FF0C68F1E55E210008DB217 /* PaymentRefundOpTests.cpp in Sources */,
 				CEF05EF61C4A7A330050C900 /* WorkTests.cpp in Sources */,
 				7F3D4F371BDA4C5900B914B6 /* FileTransferInfo.cpp in Sources */,
 				7F3D4F551BDA4D0E00B914B6 /* BallotProtocol.cpp in Sources */,

@@ -23,7 +23,7 @@ using xdr::operator==;
 
 PaymentRefundOpFrame::PaymentRefundOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                                TransactionFrame& parentTx)
-    : OperationFrame(op, res, fee, parentTx), mRefund(mOperation.body.prefundOp())
+    : OperationFrame(op, res, fee, parentTx), mRefund(mOperation.body.refundOp())
 {
 }
 
@@ -43,6 +43,14 @@ PaymentRefundOpFrame::doApply(Application& app, LedgerDelta& delta,
 	}
 
 	Database& db = ledgerManager.getDatabase();
+    auto destination = AccountFrame::loadAccount(delta, mRefund.paymentSource, db);
+    if (!destination) {
+        app.getMetrics().NewMeter({ "op-refund-payment", "failure", "no-payment-sender" },
+                                  "operation").Mark();
+        innerResult().code(REFUND_NO_PAYMENT_SENDER);
+        return false;
+    }
+
     LedgerKey key;
     key.type(REFUNDED_PAYMENT);
     key.refundedPayment().rID = mRefund.paymentID;
