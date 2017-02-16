@@ -31,12 +31,12 @@ const char* RefundedPaymentFrame::kSQLCreateStatement1 =
 static const char* refundedPaymentColumnSelector =
     "SELECT id, assettype, issuer, assetcode, refunded, totalamount, lastmodified FROM refunded_payment";
 
-RefundedPaymentFrame::RefundedPaymentFrame() : EntryFrame(REFUNDED_PAYMENT), mRefundedPayment(mEntry.data.redundedPayment())
+RefundedPaymentFrame::RefundedPaymentFrame() : EntryFrame(REFUNDED_PAYMENT), mRefundedPayment(mEntry.data.refundedPayment())
 {
 }
 
 RefundedPaymentFrame::RefundedPaymentFrame(LedgerEntry const& from)
-    : EntryFrame(from), mRefundedPayment(mEntry.data.redundedPayment())
+    : EntryFrame(from), mRefundedPayment(mEntry.data.refundedPayment())
 {
 }
 
@@ -81,7 +81,7 @@ RefundedPaymentFrame::loadData(StatementContext& prep,
 {
     LedgerEntry le;
     le.data.type(REFUNDED_PAYMENT);
-    RefundEntry& oe = le.data.redundedPayment();
+    RefundEntry& oe = le.data.refundedPayment();
 
     std::string issuerStrKey, assetCode;
     unsigned int assetType;

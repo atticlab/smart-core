@@ -68,7 +68,7 @@ class RefundedPaymentFrame : public EntryFrame
     static uint64_t countObjects(soci::session& sess);
 
     // database utilities
-    static pointer loadRefundedPayment(Database& db, LedgerKey const& key);
+    static pointer loadRefundedPayment(int64 id, Database& db);
 
     static void dropAll(Database& db);
     static const char* kSQLCreateStatement1;

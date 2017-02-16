@@ -15,11 +15,8 @@ class PaymentRefundOpFrame : public OperationFrame
     RefundOp const& mRefund;
 
 	bool checkAllowed();
-	// Checks if payment have been already fully refunded.
-	// If not creates RefundedPayment instance
-	bool checkAlreadyRefunded(LedgerDelta& delta, Database& db);
 
-  public:
+public:
     PaymentRefundOpFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                    TransactionFrame& parentTx);
 
