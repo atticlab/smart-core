@@ -314,7 +314,7 @@ struct Operation
 	case PAYMENT_REVERSAL:
 		PaymentReversalOp paymentReversalOp;
     case REFUND:
-        RefundOp prefundOp;
+        RefundOp refundOp;
     }
     body;
 };
