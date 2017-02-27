@@ -22,7 +22,7 @@ typedef std::unique_ptr<Application> appPtr;
 // remove data
 // remove data that isn't there
 // add too much data
-TEST_CASE("manage data", "[tx][managedata]")
+TEST_CASE("manage data", "[tx_][managedata]")
 {
     Config const& cfg = getTestConfig();
 

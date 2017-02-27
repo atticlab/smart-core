@@ -29,7 +29,7 @@ typedef std::unique_ptr<Application> appPtr;
     double spend
 */
 
-TEST_CASE("txenvelope", "[tx][envelope]")
+TEST_CASE("txenvelope", "[tx_][envelope]")
 {
     Config const& cfg = getTestConfig();
 

@@ -19,6 +19,7 @@
 #include "ledger/DataFrame.h"
 #include "ledger/ReversedPaymentFrame.h"
 #include "ledger/RefundedPaymentFrame.h"
+#include "ledger/AssetFrame.h"
 #include "overlay/OverlayManager.h"
 #include "main/PersistentState.h"
 #include "main/ExternalQueue.h"
@@ -270,6 +271,7 @@ Database::initialize()
     TrustFrame::dropAll(*this);
 	ReversedPaymentFrame::dropAll(*this);
     RefundedPaymentFrame::dropAll(*this);
+	AssetFrame::dropAll(*this);
     OverlayManager::dropAll(*this);
     PersistentState::dropAll(*this);
     ExternalQueue::dropAll(*this);

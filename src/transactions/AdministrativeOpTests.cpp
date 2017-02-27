@@ -37,26 +37,27 @@ TEST_CASE("administrative operation", "[tx][admin]")
 
     // set up world
     SecretKey root = getRoot(app.getNetworkID());
-    SecretKey a1 = getAccount("A");
+    SecretKey admin = getAccount("A");
 	auto rootSeq = getAccountSeqNum(root, app) + 1;
-	auto signer = Signer(a1.getPublicKey(), 100, SIGNER_ADMIN);
+	auto signer = Signer(admin.getPublicKey(), 100, SIGNER_ADMIN);
 	applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr, nullptr, &signer, nullptr);
 	std::string data = "LongRandomData(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)(V) (;,,;) (V)";
 
 	SECTION("success")
 	{
-		applyAdminOp(app, root, a1, data, rootSeq++);
+		applyAdminOp(app, root, admin, data, rootSeq++);
 	}
 	SECTION("Empty data")
 	{
 		std::string emptyData = "";
-		applyAdminOp(app, root, a1, emptyData, rootSeq++, ADMINISTRATIVE_MALFORMED);
+		applyAdminOp(app, root, admin, emptyData, rootSeq++, ADMINISTRATIVE_MALFORMED);
 	}
 	SECTION("Source is not bank")
 	{
-		applyCreateAccountTx(app, root, a1, rootSeq++, 0);
-		auto a1Seq = getAccountSeqNum(a1, app) + 1;
-		applyAdminOp(app, a1, a1, data, a1Seq++, ADMINISTRATIVE_NOT_AUTHORIZED);
+		SecretKey randomAccount = SecretKey::random();
+		applyCreateAccountTx(app, root, randomAccount, rootSeq++, 0, &admin);
+		auto randomAccountSeq = getAccountSeqNum(randomAccount, app) + 1;
+		applyAdminOp(app, randomAccount, randomAccount, data, randomAccountSeq++, ADMINISTRATIVE_NOT_AUTHORIZED);
 	}
 	SECTION("Only admin can sign")
 	{

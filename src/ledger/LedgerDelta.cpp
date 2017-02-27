@@ -367,6 +367,11 @@ LedgerDelta::markMeters(Application& app) const
                 .NewMeter({ "ledger", "refunded_payment", "add" }, "entry")
                 .Mark();
             break;
+		case ASSET:
+			app.getMetrics()
+				.NewMeter({ "ledger", "asset", "add" }, "entry")
+				.Mark();
+			break;
         }
     }
 
@@ -404,6 +409,11 @@ LedgerDelta::markMeters(Application& app) const
                 .NewMeter({ "ledger", "refunded_payment", "modify" }, "entry")
                 .Mark();
             break;
+		case ASSET:
+			app.getMetrics()
+				.NewMeter({ "ledger", "asset", "modify" }, "entry")
+				.Mark();
+			break;
         }
     }
 
@@ -441,6 +451,11 @@ LedgerDelta::markMeters(Application& app) const
                 .NewMeter({ "ledger", "refunded_payment", "delete" }, "entry")
                 .Mark();
             break;
+		case ASSET:
+			app.getMetrics()
+				.NewMeter({ "ledger", "asset", "delete" }, "entry")
+				.Mark();
+			break;
         }
     }
 }

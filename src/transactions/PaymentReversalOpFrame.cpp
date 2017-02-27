@@ -13,6 +13,7 @@
 #include "medida/metrics_registry.h"
 #include "main/Application.h"
 #include <algorithm>
+#include "AssetsValidator.h"
 
 namespace stellar
 {
@@ -58,6 +59,14 @@ PaymentReversalOpFrame::doApply(Application& app, LedgerDelta& delta,
 	}
 
 	Database& db = ledgerManager.getDatabase();
+	AssetsValidator assetsValidator(app, db);
+	if (!assetsValidator.isAssetAllowed(mPaymentReversal.asset))
+	{
+		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "asset-not-allowed" },
+			"operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
+		return false;
+	}
 
 	if (!checkAlreadyReversed(delta, db)) {
 		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "already-reversed" },
@@ -203,14 +212,6 @@ PaymentReversalOpFrame::doCheckValid(Application& app)
 	if (mPaymentReversal.commissionAmount < 0)
 	{
 		app.getMetrics().NewMeter({ "op-reversal-payment", "invalid", "malformed-negative-commission" },
-			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_MALFORMED);
-		return false;
-	}
-
-	if (!isAssetValid(app.getIssuer(), mPaymentReversal.asset) || mPaymentReversal.asset.type() == ASSET_TYPE_NATIVE)
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "invalid", "malformed-invalid-asset" },
 			"operation").Mark();
 		innerResult().code(PAYMENT_REVERSAL_MALFORMED);
 		return false;

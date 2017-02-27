@@ -33,5 +33,8 @@ std::vector<TrustLineEntry> generateValidTrustLineEntries(size_t n);
 
 OfferEntry generateValidOfferEntry(size_t b = 3);
 std::vector<OfferEntry> generateValidOfferEntries(size_t n);
+
+AssetEntry generateValidAssetEntry(size_t b = 3);
+std::vector<AssetEntry> generateValidAssetEntries(size_t n);
 }
 }

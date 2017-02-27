@@ -6,6 +6,8 @@
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/CreateAccountOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
+#include "transactions/AssetsValidator.h"
+#include "ledger/AssetFrame.h"
 #include "util/Logging.h"
 #include "ledger/LedgerDelta.h"
 #include "ledger/OfferFrame.h"
@@ -124,6 +126,24 @@ PathPaymentOpFrame::doApply(Application& app,
 {
 
     Database& db = ledgerManager.getDatabase();
+	AssetsValidator assetsValidator(app, db);
+
+	if (!assetsValidator.isAssetAllowed(mPathPayment.sendAsset) || !assetsValidator.isAssetAllowed(mPathPayment.destAsset))
+	{
+		app.getMetrics().NewMeter({ "op-path-payment", "invalid", "malformed-currencies" },
+			"operation").Mark();
+		innerResult().code(PATH_PAYMENT_ASSET_NOT_ALLOWED);
+		return false;
+	}
+
+	auto const& p = mPathPayment.path;
+	if (!std::all_of(p.begin(), p.end(), [assetsValidator](Asset asset) {return assetsValidator.isAssetAllowed(asset); }))
+	{
+		app.getMetrics().NewMeter({ "op-path-payment", "invalid", "malformed-currencies" },
+			"operation").Mark();
+		innerResult().code(PATH_PAYMENT_ASSET_NOT_ALLOWED);
+		return false;
+	}
 
     innerResult().code(PATH_PAYMENT_SUCCESS);
     // tracks the last amount that was traded
@@ -155,6 +175,15 @@ PathPaymentOpFrame::doApply(Application& app,
     
     if (!destination)
     {
+		auto destAsset = AssetFrame::loadAsset(mPathPayment.destAsset, db, &delta);
+		if (!destAsset || !destAsset->getAsset().isAnonymous)
+		{
+			app.getMetrics().NewMeter({ "op-path-payment", "failure", "no-destination" },
+				"operation").Mark();
+			innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+			return false;
+		}
+
         destination = createDestination(app, ledgerManager, delta);
         bool destinationCreated = !!destination;
         // if destination was created and asset is not native - create trust line
@@ -455,24 +484,6 @@ PathPaymentOpFrame::doCheckValid(Application& app)
     if (mPathPayment.destAmount - commission <= 0 || mPathPayment.sendMax <= 0)
     {
         app.getMetrics().NewMeter({"op-path-payment", "invalid", "malformed-amounts"},
-                         "operation").Mark();
-        innerResult().code(PATH_PAYMENT_MALFORMED);
-        return false;
-    }
-
-	auto const& issuer = app.getIssuer();
-    if (!isAssetValid(issuer, mPathPayment.sendAsset) ||
-        !isAssetValid(issuer, mPathPayment.destAsset))
-    {
-        app.getMetrics().NewMeter({"op-path-payment", "invalid", "malformed-currencies"},
-                         "operation").Mark();
-        innerResult().code(PATH_PAYMENT_MALFORMED);
-        return false;
-    }
-    auto const& p = mPathPayment.path;
-	if (!std::all_of(p.begin(), p.end(), [issuer](Asset asset) {return isAssetValid(issuer, asset);}))
-    {
-        app.getMetrics().NewMeter({"op-path-payment", "invalid", "malformed-currencies"},
                          "operation").Mark();
         innerResult().code(PATH_PAYMENT_MALFORMED);
         return false;

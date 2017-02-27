@@ -269,7 +269,7 @@ doInflation(Application& app, int nbAccounts,
     REQUIRE(expectedWinnerCount == payouts.size());
 }
 
-TEST_CASE("inflation", "[tx][inflation]")
+TEST_CASE("inflation", "[tx_][inflation]")
 {
     Config const& cfg = getTestConfig(0);
 

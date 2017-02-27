@@ -432,7 +432,7 @@ TEST_CASE("file-backed buckets", "[bucket][bucketbench]")
     CLOG(DEBUG, "Bucket") << "Spill file size: " << fileSize(b1->getFilename());
 }
 
-TEST_CASE("merging bucket entries", "[bucket]")
+TEST_CASE("merging bucket entries", "[bucket][entries]")
 {
     VirtualClock clock;
     Config const& cfg = getTestConfig();
@@ -485,6 +485,20 @@ TEST_CASE("merging bucket entries", "[bucket]")
             Bucket::fresh(app->getBucketManager(), live, dead);
         CHECK(countEntries(b1) == 1);
     }
+
+	SECTION("dead asset entry annihilates live asset entry")
+	{
+		liveEntry.data.type(ASSET);
+		liveEntry.data.asset() =
+			LedgerTestUtils::generateValidAssetEntry(10);
+		deadEntry.type(ASSET);
+		deadEntry.asset().asset = liveEntry.data.asset().asset;
+		std::vector<LedgerEntry> live{ liveEntry };
+		std::vector<LedgerKey> dead{ deadEntry };
+		std::shared_ptr<Bucket> b1 =
+			Bucket::fresh(app->getBucketManager(), live, dead);
+		CHECK(countEntries(b1) == 1);
+	}
 
     SECTION("random dead entries annihilates live entries")
     {

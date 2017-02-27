@@ -70,6 +70,9 @@ TEST_CASE("payment", "[tx][payment]")
     Asset idrCur = makeAsset(root, "IDR");
     Asset usdCur = makeAsset(root, "USD");
 	Asset eurCur = makeAsset(root, "EUR");
+	applyManageAssetOp(app, root, rootSeq++, sk, idrCur, false, false);
+	applyManageAssetOp(app, root, rootSeq++, sk, usdCur, false, false);
+	applyManageAssetOp(app, root, rootSeq++, sk, eurCur, false, false);
 
     AccountFrame::pointer a1Account, rootAccount;
     rootAccount = loadAccount(root, app);
@@ -85,6 +88,40 @@ TEST_CASE("payment", "[tx][payment]")
 
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
+
+	SECTION("Can't create account on non anonymous account")
+	{
+		auto anonUser = getAccount("anonUser");
+		auto oldBalance = 0;
+		OperationFee fee;
+		fee.type(OperationFeeType::opFEE_CHARGED);
+		fee.fee().amountToCharge = paymentAmount / 2;
+		fee.fee().asset = idrCur;
+		applyCreditPaymentTx(app, root, anonUser, idrCur, rootSeq++, paymentAmount, &sk, &fee, PAYMENT_NO_DESTINATION);
+	}
+	SECTION("success account creation") {
+		auto aUAH = makeAsset(root, "AUAH");
+		applyManageAssetOp(app, root, rootSeq++, sk, aUAH, true, false);
+		auto anonUser = getAccount("anonUser");
+		auto oldBalance = 0;
+		OperationFee fee;
+		fee.type(OperationFeeType::opFEE_CHARGED);
+		fee.fee().amountToCharge = paymentAmount / 2;
+		fee.fee().asset = aUAH;
+		applyCreditPaymentTx(app, root, anonUser, aUAH, rootSeq++, paymentAmount, &sk, &fee);
+
+		auto anonAccount = loadAccount(anonUser, app);
+		REQUIRE(anonAccount->getAccount().accountType == ACCOUNT_ANONYMOUS_USER);
+
+		auto anonLine = loadTrustLine(anonUser, aUAH, app);
+		REQUIRE(anonLine->getBalance() == paymentAmount - fee.fee().amountToCharge);
+
+		auto commLine = loadTrustLine(commissionSeed, aUAH, app);
+		REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
+
+		auto anonSeq = getAccountSeqNum(anonUser, app) + 1;
+		applyCreditPaymentTx(app, anonUser, root, aUAH, anonSeq++, paymentAmount - fee.fee().amountToCharge, nullptr);
+	}
 	SECTION("payment") 
 	{
 		auto newAccount = getAccount("newAccount");
@@ -94,9 +131,9 @@ TEST_CASE("payment", "[tx][payment]")
 		fee.fee().asset = idrCur;
 		SECTION("invalid asset")
 		{
-			auto a1Asset = makeAsset(a1, "AAA");
-			fee.fee().asset = a1Asset;
-			applyCreditPaymentTx(app, a1, newAccount, a1Asset, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_MALFORMED);
+			auto invalidAsset = makeAsset(root, "INA");
+			fee.fee().asset = invalidAsset;
+			applyCreditPaymentTx(app, a1, newAccount, invalidAsset, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_ASSET_NOT_ALLOWED);
 		}
 		// create an account
 		applyCreateAccountTx(app, root, b1, rootSeq++, 0, &sk);
@@ -173,7 +210,7 @@ TEST_CASE("payment", "[tx][payment]")
 			{
 				auto account = SecretKey::random();
 				auto invalidCur = makeAsset(distr, "USD");
-				applyCreateAccountTx(app, distr, account, distrSeq++, 100, nullptr, CREATE_ACCOUNT_MALFORMED, ACCOUNT_SCRATCH_CARD, &invalidCur);
+				applyCreateAccountTx(app, distr, account, distrSeq++, 100, nullptr, CREATE_ACCOUNT_ASSET_NOT_ALLOWED, ACCOUNT_SCRATCH_CARD, &invalidCur);
 			}
 			SECTION("Success")
 			{
@@ -254,9 +291,9 @@ TEST_CASE("payment", "[tx][payment]")
                              trustLineStartingBalance);
     }
 	SECTION("Invalid issuer") {
-		applyChangeTrust(app, a1, b1, a1Seq++, "USD", INT64_MAX, CHANGE_TRUST_MALFORMED);
+		applyChangeTrust(app, a1, b1, a1Seq++, "USD", INT64_MAX, CHANGE_TRUST_ASSET_NOT_ALLOWED);
 		auto invalidCur = makeAsset(b1, "USD");
-		applyCreditPaymentTx(app, a1, b1, invalidCur, a1Seq++, 123, nullptr, nullptr, PAYMENT_MALFORMED);
+		applyCreditPaymentTx(app, a1, b1, invalidCur, a1Seq++, 123, nullptr, nullptr, PAYMENT_ASSET_NOT_ALLOWED);
 	}
     SECTION("payment through path")
     {
@@ -596,28 +633,6 @@ TEST_CASE("payment", "[tx][payment]")
 
 				auto commLine = loadTrustLine(commissionSeed, idrCur, app);
 				REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
-			}
-			SECTION("success account creation") {
-				auto anonUser = getAccount("anonUser");
-				auto aUAH = makeAsset(root, "AUAH");
-				auto oldBalance = 0;
-				OperationFee fee;
-				fee.type(OperationFeeType::opFEE_CHARGED);
-				fee.fee().amountToCharge = paymentAmount / 2;
-				fee.fee().asset = aUAH;
-				applyCreditPaymentTx(app, root, anonUser, aUAH, rootSeq++, paymentAmount, &sk, &fee);
-
-				auto anonAccount = loadAccount(anonUser, app);
-				REQUIRE(anonAccount->getAccount().accountType == ACCOUNT_ANONYMOUS_USER);
-
-				auto anonLine = loadTrustLine(anonUser, aUAH, app);
-				REQUIRE(anonLine->getBalance() == paymentAmount - fee.fee().amountToCharge);
-
-				auto commLine = loadTrustLine(commissionSeed, aUAH, app);
-				REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
-
-				auto anonSeq = getAccountSeqNum(anonUser, app) + 1;
-				applyCreditPaymentTx(app, anonUser, root, aUAH, anonSeq++, paymentAmount - fee.fee().amountToCharge, nullptr);
 			}
 		}
 	}

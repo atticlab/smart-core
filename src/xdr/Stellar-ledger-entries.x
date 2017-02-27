@@ -89,7 +89,8 @@ enum LedgerEntryType
     OFFER = 2,
     DATA = 3,
 	REVERSED_PAYMENT = 4,
-    REFUNDED_PAYMENT = 5
+    REFUNDED_PAYMENT = 5,
+	ASSET = 6
 };
 
 struct Signer
@@ -271,6 +272,20 @@ struct RefundEntry
     ext;
 };
 
+struct AssetEntry
+{
+    Asset asset; // A
+    bool isAnonymous;
+
+    // reserved for future use
+    union switch (int v)
+    {
+    case 0:
+        void;
+    }
+    ext;
+};
+
 
 struct LedgerEntry
 {
@@ -290,6 +305,8 @@ struct LedgerEntry
 		ReversedPaymentEntry reversedPayment;
     case REFUNDED_PAYMENT:
         RefundEntry refundedPayment;
+	case ASSET:
+		AssetEntry asset;
     }
     data;
 

@@ -86,6 +86,8 @@ struct LedgerEntryIdCmp
 			return a.reversedPayment().rID < b.reversedPayment().rID;
         case REFUNDED_PAYMENT:
             return a.refundedPayment().rID < b.refundedPayment().rID;
+		case ASSET:
+			return a.asset().asset < b.asset().asset;
         }
         return false;
     }

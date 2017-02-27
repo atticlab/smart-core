@@ -94,6 +94,12 @@
     <Filter Include="work">
       <UniqueIdentifier>{5b7c914e-a53b-4ac8-9d59-4eb0a63d4e64}</UniqueIdentifier>
     </Filter>
+    <Filter Include="transactions\validators">
+      <UniqueIdentifier>{7f81f2fb-166b-4074-9efc-0818f3af3cde}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="transactions\validators\test">
+      <UniqueIdentifier>{2364b991-9020-4ad1-ac01-c4a9736525b1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\ledger\LedgerManagerImpl.cpp">
@@ -543,6 +549,27 @@
     <ClCompile Include="..\..\src\transactions\PaymentReversalOpFrame.cpp">
       <Filter>transactions</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\transactions\ManageAssetOpFrame.cpp">
+      <Filter>transactions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ledger\AssetFrame.cpp">
+      <Filter>ledger</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\transactions\ManageAssetOpTests.cpp">
+      <Filter>transactions\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\transactions\PaymentRefundOpFrame.cpp">
+      <Filter>transactions</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ledger\RefundedPaymentFrame.cpp">
+      <Filter>ledger</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\transactions\AssetsValidator.cpp">
+      <Filter>transactions\validators</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\transactions\AssetsValidatorTests.cpp">
+      <Filter>transactions\validators\test</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\ledger\LedgerManager.h">
@@ -937,6 +964,21 @@
     </ClInclude>
     <ClInclude Include="..\..\src\transactions\PaymentReversalOpFrame.h">
       <Filter>transactions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\transactions\ManageAssetOpFrame.h">
+      <Filter>transactions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ledger\AssetFrame.h">
+      <Filter>ledger</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\transactions\PaymentRefundOpFrame.h">
+      <Filter>transactions</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ledger\RefundedPaymentFrame.h">
+      <Filter>ledger</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\transactions\AssetsValidator.h">
+      <Filter>transactions\validators</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

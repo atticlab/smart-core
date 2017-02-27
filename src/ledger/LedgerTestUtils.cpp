@@ -102,6 +102,31 @@ makeValid(TrustLineEntry& tl)
     clampLow<int64_t>(1, tl.limit);
     clampHigh<int64_t>(tl.limit, tl.balance);
 }
+
+void
+makeValid(ReversedPaymentEntry& tl)
+{
+	tl.rID = rand();
+}
+
+void makeValid(RefundEntry& tl)
+{
+	tl.rID = rand();
+	tl.asset.type(ASSET_TYPE_CREDIT_ALPHANUM4);
+	strToAssetCode(tl.asset.alphaNum4().assetCode, "USD");
+	clampLow<int64_t>(1, tl.refundedAmount);
+	clampLow<int64_t>(1, tl.totalOriginalAmount);
+	clampHigh<int64_t>(tl.totalOriginalAmount, tl.refundedAmount);
+}
+
+void
+makeValid(AssetEntry& tl)
+{
+	tl.asset.type(ASSET_TYPE_CREDIT_ALPHANUM4);
+	tl.asset.alphaNum4().issuer = SecretKey::random().getPublicKey();
+	strToAssetCode(tl.asset.alphaNum4().assetCode, "USD");
+}
+
 void
 makeValid(OfferEntry& o)
 {
@@ -143,6 +168,15 @@ static auto validLedgerEntryGenerator = autocheck::map(
         case DATA:
             makeValid(led.data());
             break;
+		case REVERSED_PAYMENT:
+			makeValid(led.reversedPayment());
+			break;
+		case REFUNDED_PAYMENT:
+			makeValid(led.refundedPayment());
+			break;
+		case ASSET:
+			makeValid(led.asset());
+			break;
         }
 
         return le;
@@ -164,6 +198,14 @@ static auto validTrustLineEntryGenerator = autocheck::map(
         return tl;
     },
     autocheck::generator<TrustLineEntry>());
+
+static auto validAssetEntryGenerator = autocheck::map(
+	[](AssetEntry&& tl, size_t s)
+{
+	makeValid(tl);
+	return tl;
+},
+autocheck::generator<AssetEntry>());
 
 static auto validOfferEntryGenerator = autocheck::map(
     [](OfferEntry&& o, size_t s)
@@ -224,5 +266,19 @@ generateValidOfferEntries(size_t n)
     static auto vecgen = autocheck::list_of(validOfferEntryGenerator);
     return vecgen(n);
 }
+
+AssetEntry
+generateValidAssetEntry(size_t b)
+{
+	return validAssetEntryGenerator(b);
+}
+
+std::vector<AssetEntry>
+generateValidAssetEntries(size_t n)
+{
+	static auto vecgen = autocheck::list_of(validAssetEntryGenerator);
+	return vecgen(n);
+}
+
 }
 }

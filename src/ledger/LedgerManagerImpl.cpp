@@ -14,6 +14,7 @@
 #include "ledger/LedgerDelta.h"
 #include "ledger/LedgerHeaderFrame.h"
 #include "ledger/LedgerManagerImpl.h"
+#include "ledger/AssetFrame.h"
 #include "TrustFrame.h"
 #include "OfferFrame.h"
 #include "DataFrame.h"
@@ -162,6 +163,17 @@ LedgerManagerImpl::startNewLedger()
     AccountFrame masterAccount(mApp.getConfig().BANK_MASTER_KEY);
     masterAccount.getAccount().balance = 0;
     masterAccount.getAccount().accountType = ACCOUNT_BANK;
+	// euah is subetry of master account
+	masterAccount.getAccount().numSubEntries += 1;
+	
+	Asset euah;
+	euah.type(ASSET_TYPE_CREDIT_ALPHANUM4);
+	euah.alphaNum4().issuer = masterAccount.getAccount().accountID;
+	strToAssetCode(euah.alphaNum4().assetCode, "EUAH");
+	AssetFrame euahFrame;
+	euahFrame.getAsset().asset = euah;
+	euahFrame.getAsset().isAnonymous = true;
+
 
     AccountFrame commissionAccount(mApp.getConfig().BANK_COMMISSION_KEY);
 
@@ -181,6 +193,7 @@ LedgerManagerImpl::startNewLedger()
     LedgerDelta delta(genesisHeader, getDatabase());
     masterAccount.storeAdd(delta, this->getDatabase());
     generalAgentAccount.storeAdd(delta, this->getDatabase());
+	euahFrame.storeAdd(delta, this->getDatabase());
 
     if (!(masterAccount.getID() == commissionAccount.getID())){
         commissionAccount.getAccount().accountType = ACCOUNT_COMMISSION;
@@ -811,6 +824,7 @@ LedgerManagerImpl::checkDbState()
     std::unordered_map<AccountID, std::vector<DataFrame::pointer>> datas;
     datas = DataFrame::loadAllData(getDatabase());
 
+	std::unordered_map<AccountID, std::vector<AssetFrame::pointer>> assets = AssetFrame::loadAllAssets(getDatabase());
 
     for (auto& i : aData)
     {
@@ -834,6 +848,12 @@ LedgerManagerImpl::checkDbState()
         {
             actualSubEntries += itDatas->second.size();
         }
+
+		auto itAsset = assets.find(i.first);
+		if (itAsset != assets.end())
+		{
+			actualSubEntries += itAsset->second.size();
+		}
 
         if (a.numSubEntries != (uint32)actualSubEntries)
         {
@@ -862,6 +882,15 @@ LedgerManagerImpl::checkDbState()
                             PubKeyUtils::toStrKey(of.first)));
         }
     }
+	for (auto& as : assets)
+	{
+		if (aData.find(as.first) == aData.end())
+		{
+			throw std::runtime_error(
+				fmt::format("Unexpected asset found for account {}",
+					PubKeyUtils::toStrKey(as.first)));
+		}
+	}
 }
 
 void

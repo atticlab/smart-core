@@ -16,6 +16,7 @@
 #include "ledger/DataFrame.h"
 #include "ledger/ReversedPaymentFrame.h"
 #include "ledger/RefundedPaymentFrame.h"
+#include "ledger/AssetFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
@@ -29,6 +30,7 @@
 #include "transactions/AdministrativeOpFrame.h"
 #include "transactions/PaymentReversalOpFrame.h"
 #include "transactions/PaymentRefundOpFrame.h"
+#include "transactions/ManageAssetOpFrame.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -139,8 +141,11 @@ checkAccount(AccountID const& id, Application& app)
     std::vector<DataFrame::pointer> retDatas;
     DataFrame::loadAccountsData(id, retDatas, app.getDatabase());
 
+	std::vector<AssetFrame::pointer> retAssets;
+	AssetFrame::loadAssets(id, retAssets, app.getDatabase());
+
     size_t actualSubEntries =
-        res->getAccount().signers.size() + retLines.size() + retOffers.size() + retDatas.size();
+        res->getAccount().signers.size() + retLines.size() + retOffers.size() + retDatas.size() + retAssets.size();
 
     REQUIRE(res->getAccount().numSubEntries == (uint32)actualSubEntries);
 }
@@ -1025,6 +1030,47 @@ TransactionFramePtr createPaymentRefundOp(Hash const& networkID, SecretKey& sour
             REQUIRE(RefundedPaymentFrame::exists(app.getDatabase(), key));
         }
     }
+
+	TransactionFramePtr createManageAssetOp(Hash const& networkID, SecretKey& source, SequenceNumber seq, SecretKey& signer,
+		Asset& asset, bool isAnonymous, bool isDelete)
+	{
+		Operation op;
+		op.body.type(MANAGE_ASSET);
+		ManageAssetOp& manageAsset = op.body.manageAssetOp();
+		manageAsset.asset = asset;
+		manageAsset.isAnonymous = isAnonymous;
+		manageAsset.isDelete = isDelete;
+		auto tx = transactionFromOperation(networkID, source, seq, op);
+		tx->getEnvelope().signatures.clear();
+		tx->addSignature(signer);
+		return tx;
+	}
+
+	void applyManageAssetOp(Application& app, SecretKey& source, SequenceNumber seq, SecretKey& signer,
+		Asset& asset, bool isAnonymous, bool isDelete,
+		ManageAssetResultCode targetResult)
+	{
+		TransactionFramePtr txFrame =
+			createManageAssetOp(app.getNetworkID(), source, seq, signer, asset, isAnonymous, isDelete);
+
+		LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
+			app.getDatabase());
+		applyCheck(txFrame, delta, app);
+
+		REQUIRE(ManageAssetOpFrame::getInnerCode(
+			txFrame->getResult().result.results()[0]) == targetResult);
+		if (targetResult != MANAGE_ASSET_SUCCESS)
+			return;
+
+		AssetFrame::pointer storedAsset = AssetFrame::loadAsset(asset, app.getDatabase());
+		if (isDelete) 
+		{
+			REQUIRE(!storedAsset);
+			return;
+		}
+
+		REQUIRE(storedAsset->getAsset().isAnonymous == isAnonymous);
+	}
 
 
 OperationFrame const&

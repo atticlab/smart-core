@@ -9,6 +9,7 @@
 #include "ledger/AccountFrame.h"
 #include "ledger/OfferFrame.h"
 #include "ledger/TrustFrame.h"
+#include "ledger/AssetFrame.h"
 #include "util/optional.h"
 #include "herder/LedgerCloseData.h"
 
@@ -208,6 +209,13 @@ TransactionFramePtr createPaymentRefundOp(Hash const& networkID, SecretKey& sour
 void applyPaymentRefundOp(Application& app, SecretKey& source, SequenceNumber seq,
     int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 originalAmount,
     RefundResultCode targetResult = REFUND_SUCCESS);
+
+TransactionFramePtr createManageAssetOp(Hash const& networkID, SecretKey& source, SequenceNumber seq, SecretKey& signer,
+	Asset& asset, bool isAnonymous, bool isDelete);
+
+void applyManageAssetOp(Application& app, SecretKey& source, SequenceNumber seq, SecretKey& signer,
+	Asset& asset, bool isAnonymous, bool isDelete,
+	ManageAssetResultCode targetResult = MANAGE_ASSET_SUCCESS);
 
 Asset makeAsset(SecretKey& issuer, std::string const& code);
 

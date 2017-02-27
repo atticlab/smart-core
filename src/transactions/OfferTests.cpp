@@ -27,7 +27,7 @@ typedef std::unique_ptr<Application> appPtr;
 // Offer for something you can't hold
 // Offer with line full (both accounts)
 
-TEST_CASE("create offer", "[tx][offers]")
+TEST_CASE("create offer", "[tx_][offers]")
 {
     Config const& cfg = getTestConfig();
 

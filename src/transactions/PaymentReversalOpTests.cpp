@@ -50,7 +50,6 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 	auto signer = Signer(sk.getPublicKey(), 100, SIGNER_ADMIN);
 	applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr, nullptr, &signer, nullptr);
 	auto commissionSeq = getAccountSeqNum(commissionAccount, app) + 1;
-	applySetOptions(app, commissionAccount, commissionSeq++, nullptr, nullptr, nullptr, nullptr, &signer, nullptr);
 
 	// create an account
 	auto agent = getAccount("agent");
@@ -62,6 +61,7 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 	auto accountSeq = getAccountSeqNum(account, app) + 1;
 
 	auto usd = makeAsset(root, "USD");
+	applyManageAssetOp(app, root, rootSeq++, sk, usd, false, false);
 	// send some assets to agent
 	applyChangeTrust(app, agent, root, agentSeq++, "USD", INT64_MAX);
 	OperationFee fee;
@@ -91,7 +91,7 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 		{
 			Asset native;
 			native.type(ASSET_TYPE_NATIVE);
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, native, paymentAmount, commissionAmount, PAYMENT_REVERSAL_MALFORMED);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, native, paymentAmount, commissionAmount, PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
 		}
 	}
 	SECTION("Commission")
@@ -99,6 +99,7 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 		SECTION("Commission trust line does not exists")
 		{
 			auto eur = makeAsset(root, "EUR");
+			applyManageAssetOp(app, root, rootSeq++, sk, eur, false, false);
 			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, eur, paymentAmount, commissionAmount, PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED);
 		}
 		SECTION("Commission account is underfunded")
@@ -111,8 +112,9 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 		SECTION("Trust line does not exists")
 		{
 			auto eur = makeAsset(root, "EUR");
-			applyChangeTrust(app, commissionAccount, root, commissionSeq++, "EUR", INT64_MAX, CHANGE_TRUST_SUCCESS, &sk);
-			applyCreditPaymentTx(app, root, commissionAccount, eur, rootSeq++, commissionAmount, &sk, nullptr);
+			applyManageAssetOp(app, root, rootSeq++, sk, eur, false, false);
+			applyChangeTrust(app, commissionAccount, root, commissionSeq++, "EUR", INT64_MAX);
+			applyCreditPaymentTx(app, root, commissionAccount, eur, rootSeq++, commissionAmount, &sk);
 			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, eur, paymentAmount, commissionAmount, PAYMENT_REVERSAL_SRC_NO_TRUST);
 
 		}

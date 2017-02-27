@@ -27,7 +27,7 @@ typedef std::unique_ptr<Application> appPtr;
 // Merging with outstanding 0 balance trust lines
 // Merging with outstanding offers
 // Merge when you have outstanding data entries
-TEST_CASE("merge", "[tx][merge]")
+TEST_CASE("merge", "[tx_][merge]")
 {
     Config cfg(getTestConfig());
 

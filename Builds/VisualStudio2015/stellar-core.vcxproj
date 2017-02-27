@@ -176,6 +176,7 @@
     <ClCompile Include="..\..\src\history\InferredQuorumTests.cpp" />
     <ClCompile Include="..\..\src\history\StateSnapshot.cpp" />
     <ClCompile Include="..\..\src\ledger\AccountFrame.cpp" />
+    <ClCompile Include="..\..\src\ledger\AssetFrame.cpp" />
     <ClCompile Include="..\..\src\ledger\DataFrame.cpp" />
     <ClCompile Include="..\..\src\ledger\LedgerDelta.cpp" />
     <ClCompile Include="..\..\src\ledger\EntryFrame.cpp" />
@@ -188,6 +189,7 @@
     <ClCompile Include="..\..\src\ledger\LedgerTests.cpp" />
     <ClCompile Include="..\..\src\ledger\LedgerTestUtils.cpp" />
     <ClCompile Include="..\..\src\ledger\OfferFrame.cpp" />
+    <ClCompile Include="..\..\src\ledger\RefundedPaymentFrame.cpp" />
     <ClCompile Include="..\..\src\ledger\ReversedPaymentFrame.cpp" />
     <ClCompile Include="..\..\src\ledger\TrustFrame.cpp" />
     <ClCompile Include="..\..\lib\asio\src\asio.cpp" />
@@ -266,9 +268,13 @@
     <ClCompile Include="..\..\src\transactions\AdministrativeOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\AdministrativeOpTests.cpp" />
     <ClCompile Include="..\..\src\transactions\AllowTrustOpFrame.cpp" />
+    <ClCompile Include="..\..\src\transactions\AssetsValidator.cpp" />
+    <ClCompile Include="..\..\src\transactions\AssetsValidatorTests.cpp" />
     <ClCompile Include="..\..\src\transactions\ChangeTrustTests.cpp" />
     <ClCompile Include="..\..\src\transactions\CreateAccountOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\CreatePassiveOfferOpFrame.cpp" />
+    <ClCompile Include="..\..\src\transactions\ManageAssetOpFrame.cpp" />
+    <ClCompile Include="..\..\src\transactions\ManageAssetOpTests.cpp" />
     <ClCompile Include="..\..\src\transactions\ManageDataOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\ManageDataTests.cpp" />
     <ClCompile Include="..\..\src\transactions\ManageOfferOpFrame.cpp" />
@@ -281,6 +287,7 @@
     <ClCompile Include="..\..\src\transactions\OperationFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\PathPaymentOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\PaymentOpFrame.cpp" />
+    <ClCompile Include="..\..\src\transactions\PaymentRefundOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\PaymentReversalOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\PaymentReversalOpTests.cpp" />
     <ClCompile Include="..\..\src\transactions\PaymentTests.cpp" />
@@ -341,9 +348,11 @@
     <ClInclude Include="..\..\src\database\Database.h" />
     <ClInclude Include="..\..\src\history\HistoryWork.h" />
     <ClInclude Include="..\..\src\history\InferredQuorum.h" />
+    <ClInclude Include="..\..\src\ledger\AssetFrame.h" />
     <ClInclude Include="..\..\src\ledger\DataFrame.h" />
     <ClInclude Include="..\..\src\history\StateSnapshot.h" />
     <ClInclude Include="..\..\src\ledger\LedgerTestUtils.h" />
+    <ClInclude Include="..\..\src\ledger\RefundedPaymentFrame.h" />
     <ClInclude Include="..\..\src\ledger\ReversedPaymentFrame.h" />
     <ClInclude Include="..\..\src\main\ExternalQueue.h" />
     <ClInclude Include="..\..\src\overlay\LoadManager.h" />
@@ -412,8 +421,10 @@
     <ClInclude Include="..\..\src\simulation\Topologies.h" />
     <ClInclude Include="..\..\src\transactions\AdministrativeOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\AllowTrustOpFrame.h" />
+    <ClInclude Include="..\..\src\transactions\AssetsValidator.h" />
     <ClInclude Include="..\..\src\transactions\CreateAccountOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\CreatePassiveOfferOpFrame.h" />
+    <ClInclude Include="..\..\src\transactions\ManageAssetOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\ManageDataOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\ManageOfferOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\InflationOpFrame.h" />
@@ -422,6 +433,7 @@
     <ClInclude Include="..\..\src\transactions\OperationFrame.h" />
     <ClInclude Include="..\..\src\transactions\PathPaymentOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\PaymentOpFrame.h" />
+    <ClInclude Include="..\..\src\transactions\PaymentRefundOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\PaymentReversalOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\SetOptionsOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\TransactionFrame.h" />

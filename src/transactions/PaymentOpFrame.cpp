@@ -111,6 +111,11 @@ PaymentOpFrame::doApply(Application& app, LedgerDelta& delta,
                              "operation").Mark();
             res = PAYMENT_NO_ISSUER;
             break;
+		case PATH_PAYMENT_ASSET_NOT_ALLOWED:
+			app.getMetrics().NewMeter({ "op-payment", "failure", "asset-not-allowed" },
+				"operation").Mark();
+			res = PAYMENT_ASSET_NOT_ALLOWED;
+			break;
         default:
             throw std::runtime_error("Unexpected error code from pathPayment");
         }
@@ -159,13 +164,7 @@ PaymentOpFrame::doCheckValid(Application& app)
         innerResult().code(PAYMENT_MALFORMED);
         return false;
     }
-    if (!isAssetValid(app.getIssuer(), mPayment.asset))
-    {
-        app.getMetrics().NewMeter({"op-payment", "invalid", "malformed-invalid-asset"},
-                         "operation").Mark();
-        innerResult().code(PAYMENT_MALFORMED);
-        return false;
-    }
+
     return true;
 }
     

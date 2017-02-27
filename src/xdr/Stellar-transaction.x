@@ -28,7 +28,8 @@ enum OperationType
     MANAGE_DATA = 10,
 	ADMINISTRATIVE = 11,
 	PAYMENT_REVERSAL = 12,
-    REFUND = 13
+    REFUND = 13,
+	MANAGE_ASSET = 14
 };
 
 /* CreateAccount
@@ -277,6 +278,22 @@ struct RefundOp
     int64 paymentID;         // id of payment to be refunded
 };
 
+/* ManageAsset
+
+    Creates/edits/deteles asset
+
+    Threshold: med
+
+    Result: ManageAssetResult
+*/
+struct ManageAssetOp
+{
+    Asset asset;           // asset to be managed
+	bool isAnonymous;
+	bool isDelete;
+    
+};
+
 /* An operation is the lowest unit of work that a transaction does */
 struct Operation
 {
@@ -315,6 +332,8 @@ struct Operation
 		PaymentReversalOp paymentReversalOp;
     case REFUND:
         RefundOp refundOp;
+	case MANAGE_ASSET:
+		ManageAssetOp manageAssetOp;
     }
     body;
 };
@@ -452,7 +471,8 @@ enum CreateAccountResultCode
     CREATE_ACCOUNT_NOT_AUTHORIZED_TYPE = -5,
     CREATE_ACCOUNT_WRONG_TYPE = -6,
     CREATE_ACCOUNT_LINE_FULL = -7,
-    CREATE_ACCOUNT_NO_ISSUER = -8
+    CREATE_ACCOUNT_NO_ISSUER = -8,
+	CREATE_ACCOUNT_ASSET_NOT_ALLOWED = -9
 };
 
 union CreateAccountResult switch (CreateAccountResultCode code)
@@ -479,7 +499,8 @@ enum PaymentResultCode
     PAYMENT_NO_TRUST = -6,       // destination missing a trust line for asset
     PAYMENT_NOT_AUTHORIZED = -7, // destination not authorized to hold asset
     PAYMENT_LINE_FULL = -8,      // destination would go above their limit
-    PAYMENT_NO_ISSUER = -9       // missing issuer on asset
+    PAYMENT_NO_ISSUER = -9,       // missing issuer on asset
+	PAYMENT_ASSET_NOT_ALLOWED = -10  // asset is not allowed
 };
 
 union PaymentResult switch (PaymentResultCode code)
@@ -509,7 +530,8 @@ enum PathPaymentResultCode
     PATH_PAYMENT_NO_ISSUER = -9,          // missing issuer on one asset
     PATH_PAYMENT_TOO_FEW_OFFERS = -10,    // not enough offers to satisfy path
     PATH_PAYMENT_OFFER_CROSS_SELF = -11,  // would cross one of its own offers
-    PATH_PAYMENT_OVER_SENDMAX = -12       // could not satisfy sendmax
+    PATH_PAYMENT_OVER_SENDMAX = -12,      // could not satisfy sendmax
+	PATH_PAYMENT_ASSET_NOT_ALLOWED = -13  // asset is not allowed
 };
 
 struct SimplePaymentResult
@@ -623,11 +645,12 @@ enum ChangeTrustResultCode
     // codes considered as "success" for the operation
     CHANGE_TRUST_SUCCESS = 0,
     // codes considered as "failure" for the operation
-    CHANGE_TRUST_MALFORMED = -1,     // bad input
-    CHANGE_TRUST_NO_ISSUER = -2,     // could not find issuer
-    CHANGE_TRUST_INVALID_LIMIT = -3, // cannot drop limit below balance
-                                     // cannot create with a limit of 0
-    CHANGE_TRUST_LOW_RESERVE = -4 // not enough funds to create a new trust line
+    CHANGE_TRUST_MALFORMED = -1,        // bad input
+    CHANGE_TRUST_NO_ISSUER = -2,        // could not find issuer
+    CHANGE_TRUST_INVALID_LIMIT = -3,    // cannot drop limit below balance
+                                        // cannot create with a limit of 0
+    CHANGE_TRUST_LOW_RESERVE = -4,      // not enough funds to create a new trust line
+	CHANGE_TRUST_ASSET_NOT_ALLOWED = -5 // asset is not allowed
 };
 
 union ChangeTrustResult switch (ChangeTrustResultCode code)
@@ -772,7 +795,8 @@ enum PaymentReversalResultCode
 	PAYMENT_REVERSAL_INVALID_ASSET = -16,                // asset is not equal to asset in payment
 	PAYMENT_REVERSAL_MALFORMED = -17,                    // reversal payment is malformed in some way
 	PAYMENT_REVERSAL_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
-	PAYMENT_REVERSAL_ALREADY_REVERSED = -19              // payment already have been reversed
+	PAYMENT_REVERSAL_ALREADY_REVERSED = -19,             // payment already have been reversed
+	PAYMENT_REVERSAL_ASSET_NOT_ALLOWED = -20             // asset is not allowed
 };
 
 union PaymentReversalResult switch (PaymentReversalResultCode code)
@@ -806,7 +830,8 @@ enum RefundResultCode
     REFUND_INVALID_ASSET = -16,                // asset is not equal to asset in payment
     REFUND_MALFORMED = -17,                    // reversal payment is malformed in some way
     REFUND_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
-    REFUND_ALREADY_REFUNDED = -19              // payment already have been refunded
+    REFUND_ALREADY_REFUNDED = -19,             // payment already have been refunded
+	REFUND_ASSET_NOT_ALLOWED = -20                   // asset is not allowed
 };
 
 union RefundResult switch (RefundResultCode code)
@@ -815,6 +840,27 @@ union RefundResult switch (RefundResultCode code)
         void;
     default:
         void;
+};
+
+/******* ManageAsset Result ********/
+enum ManageAssetResultCode
+{
+    // codes considered as "success" for the operation
+    MANAGE_ASSET_SUCCESS = 0, // op was applied
+
+    // codes considered as "failure" for the operation
+    MANAGE_ASSET_NOT_EXIST = -1,      // asset does not exists
+    MANAGE_ASSET_INVALID_ISSUER = -2, // issuer must be bank
+	MANAGE_ASSET_NOT_AUTHORIZED = -3, // must be signed by admin
+	MANAGE_ASSET_LOW_RESERVE = -4     // low reserve
+};
+
+union ManageAssetResult switch (ManageAssetResultCode code)
+{
+case MANAGE_ASSET_SUCCESS:
+    void;
+default:
+    void;
 };
 
 /* High level Operation Result */
@@ -860,6 +906,8 @@ case opINNER:
 		PaymentReversalResult paymentReversalResult;
     case REFUND:
         RefundResult refundResult;
+	case MANAGE_ASSET:
+		ManageAssetResult manageAssetResult;
     }
     tr;
 default:

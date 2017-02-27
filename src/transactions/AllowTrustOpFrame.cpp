@@ -9,6 +9,7 @@
 #include "main/Application.h"
 #include "medida/meter.h"
 #include "medida/metrics_registry.h"
+#include "AssetsValidator.h"
 
 namespace stellar
 {
@@ -60,6 +61,15 @@ AllowTrustOpFrame::doApply(Application& app, LedgerDelta& delta,
     }
 
     Database& db = ledgerManager.getDatabase();
+	AssetsValidator assetsValidator(app, db);
+	if (!assetsValidator.isAssetAllowed(ci))
+	{
+		app.getMetrics().NewMeter({ "op-allow-trust", "failure", "asset-not-allowed" },
+			"operation").Mark();
+		innerResult().code(ALLOW_TRUST_MALFORMED);
+		return false;
+	}
+
     TrustFrame::pointer trustLine;
     trustLine = TrustFrame::loadTrustLine(mAllowTrust.trustor, ci, db, &delta);
 
@@ -93,28 +103,6 @@ AllowTrustOpFrame::doCheckValid(Application& app)
         innerResult().code(ALLOW_TRUST_MALFORMED);
         return false;
     }
-    Asset ci;
-    ci.type(mAllowTrust.asset.type());
-    if (mAllowTrust.asset.type() == ASSET_TYPE_CREDIT_ALPHANUM4)
-    {
-        ci.alphaNum4().assetCode = mAllowTrust.asset.assetCode4();
-        ci.alphaNum4().issuer = getSourceID();
-    }
-    else if (mAllowTrust.asset.type() == ASSET_TYPE_CREDIT_ALPHANUM12)
-    {
-        ci.alphaNum12().assetCode = mAllowTrust.asset.assetCode12();
-        ci.alphaNum12().issuer = getSourceID();
-    }
-
-    if (!isAssetValid(app.getIssuer(), ci))
-    {
-        app.getMetrics().NewMeter(
-                    {"op-allow-trust", "invalid", "malformed-invalid-asset"},
-                    "operation").Mark();
-        innerResult().code(ALLOW_TRUST_MALFORMED);
-        return false;
-    }
-
     return true;
 }
 }

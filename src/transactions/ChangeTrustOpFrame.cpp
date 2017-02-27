@@ -5,6 +5,7 @@
 #include "ChangeTrustOpFrame.h"
 #include "ledger/TrustFrame.h"
 #include "ledger/LedgerManager.h"
+#include "AssetsValidator.h"
 #include "database/Database.h"
 #include "main/Application.h"
 #include "medida/meter.h"
@@ -25,6 +26,15 @@ ChangeTrustOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
 {
     Database& db = ledgerManager.getDatabase();
+	AssetsValidator assetsValidator(app, db);
+	if (!assetsValidator.isAssetAllowed(mChangeTrust.line))
+	{
+		app.getMetrics().NewMeter({ "op-change-trust", "failure", "asset-not-allowed" },
+			"operation").Mark();
+		innerResult().code(CHANGE_TRUST_ASSET_NOT_ALLOWED);
+		return false;
+	}
+
     auto tlI = TrustFrame::loadTrustLineIssuer(getSourceID(), mChangeTrust.line,
                                                db, delta);
 
@@ -115,14 +125,6 @@ ChangeTrustOpFrame::doCheckValid(Application& app)
     {
         app.getMetrics().NewMeter(
                     {"op-change-trust", "invalid", "malformed-negative-limit"},
-                    "operation").Mark();
-        innerResult().code(CHANGE_TRUST_MALFORMED);
-        return false;
-    }
-    if (!isAssetValid(app.getIssuer(), mChangeTrust.line))
-    {
-        app.getMetrics().NewMeter(
-                    {"op-change-trust", "invalid", "malformed-invalid-asset"},
                     "operation").Mark();
         innerResult().code(CHANGE_TRUST_MALFORMED);
         return false;

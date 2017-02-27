@@ -13,6 +13,7 @@
 #include "medida/meter.h"
 #include "medida/metrics_registry.h"
 #include "main/Application.h"
+#include "AssetsValidator.h"
 
 // convert from sheep to wheat
 // selling sheep
@@ -125,6 +126,15 @@ ManageOfferOpFrame::doApply(Application& app,
                             LedgerDelta& delta, LedgerManager& ledgerManager)
 {
     Database& db = ledgerManager.getDatabase();
+	AssetsValidator assetsValidator(app, db);
+	if (!assetsValidator.isAssetAllowed(mManageOffer.buying) || !assetsValidator.isAssetAllowed(mManageOffer.selling))
+	{
+		app.getMetrics().NewMeter({ "op-manage-offer", "failure", "asset-not-allowed" },
+			"operation").Mark();
+		innerResult().code(MANAGE_OFFER_MALFORMED);
+		return false;
+	}
+
     if (!checkOfferValid(app.getMetrics(), db, delta))
     {
         return false;
@@ -374,13 +384,6 @@ ManageOfferOpFrame::doCheckValid(Application& app)
     Asset const& sheep = mManageOffer.selling;
     Asset const& wheat = mManageOffer.buying;
 
-    if (!isAssetValid(app.getIssuer(), sheep) || !isAssetValid(app.getIssuer(), wheat))
-    {
-        app.getMetrics().NewMeter({"op-manage-offer", "invalid", "invalid-asset"},
-                         "operation").Mark();
-        innerResult().code(MANAGE_OFFER_MALFORMED);
-        return false;
-    }
     if (compareAsset(sheep, wheat))
     {
         app.getMetrics().NewMeter({"op-manage-offer", "invalid", "equal-currencies"},

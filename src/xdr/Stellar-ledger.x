@@ -132,6 +132,11 @@ case REFUNDED_PAYMENT:
     {
         int64 rID;
     } refundedPayment;
+case ASSET:
+	struct 
+	{
+		Asset asset;
+	} asset;
 };
 
 enum BucketEntryType

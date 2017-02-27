@@ -134,16 +134,27 @@ isAssetValid(Asset const& cur)
     return false;
 }
 
-bool isAssetValid(AccountID const& bankID, Asset const& cur) {
-	return isAssetValid(cur) && (cur.type() == ASSET_TYPE_NATIVE || getIssuer(cur) == bankID);
-}
-
 AccountID
 getIssuer(Asset const& asset)
 {
     return (asset.type() == ASSET_TYPE_CREDIT_ALPHANUM4
                 ? asset.alphaNum4().issuer
                 : asset.alphaNum12().issuer);
+}
+
+std::string getCode(Asset const& asset)
+{
+	std::string result = "";
+	if (asset.type() == ASSET_TYPE_CREDIT_ALPHANUM4)
+	{
+		assetCodeToStr(asset.alphaNum4().assetCode, result);
+	}
+	else if (asset.type() == ASSET_TYPE_CREDIT_ALPHANUM12)
+	{
+		assetCodeToStr(asset.alphaNum12().assetCode, result);
+	}
+
+	return result;
 }
 
 bool

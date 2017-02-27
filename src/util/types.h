@@ -24,13 +24,13 @@ uint256 makePublicKey(uint256 const& b);
 // returns true if the passed string32 is valid
 bool isString32Valid(std::string const& str);
 
-// returns true if the Asset value is well formed and issued by bankID
-bool isAssetValid(AccountID const& bankID, Asset const& cur);
 // returns true if the Asset value is well formed
 bool isAssetValid(Asset const& cur);
 
 // returns the issuer for the given asset
 AccountID getIssuer(Asset const& asset);
+// returns the code for the given asset
+std::string getCode(Asset const& asset);
 
 // returns true if the currencies are the same
 bool compareAsset(Asset const& first, Asset const& second);

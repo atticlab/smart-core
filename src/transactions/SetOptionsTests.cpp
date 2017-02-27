@@ -83,10 +83,6 @@ TEST_CASE("set options", "[tx][setoptions]")
 			{
 				applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
 					nullptr, &sk, nullptr);
-				// or commission account with type BANK
-				auto commissionSeq = getAccountSeqNum(commissionAccount, app) + 1;
-				applySetOptions(app, commissionAccount, commissionSeq++, nullptr, nullptr, nullptr,
-					nullptr, &sk, nullptr);
 			}
 		}
 		SECTION("Given admin signer")
@@ -101,10 +97,6 @@ TEST_CASE("set options", "[tx][setoptions]")
 			SECTION("Can add if bank")
 			{
 				applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr,
-					nullptr, &sk, nullptr);
-				// or commission account with type BANK
-				auto commissionSeq = getAccountSeqNum(commissionAccount, app) + 1;
-				applySetOptions(app, commissionAccount, commissionSeq++, nullptr, nullptr, nullptr,
 					nullptr, &sk, nullptr);
 			}
 		}

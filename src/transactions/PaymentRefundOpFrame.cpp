@@ -150,6 +150,11 @@ PaymentRefundOpFrame::doApply(Application& app, LedgerDelta& delta,
                                           "operation").Mark();
                 res = REFUND_NO_ISSUER;
                 break;
+			case PATH_PAYMENT_ASSET_NOT_ALLOWED:
+				app.getMetrics().NewMeter({ "op-refund", "failure", "asset-not-allowed" },
+					"operation").Mark();
+				res = REFUND_ASSET_NOT_ALLOWED;
+				break;
             default:
                 throw std::runtime_error("Unexpected error code from pathPayment");
         }
@@ -184,14 +189,6 @@ PaymentRefundOpFrame::doCheckValid(Application& app)
         innerResult().code(REFUND_INVALID_AMOUNT);
         return false;
     }
-    
-	if (!isAssetValid(app.getIssuer(), mRefund.asset) || mRefund.asset.type() == ASSET_TYPE_NATIVE)
-	{
-		app.getMetrics().NewMeter({ "op-refund-payment", "invalid", "malformed-invalid-asset" },
-			"operation").Mark();
-		innerResult().code(REFUND_INVALID_ASSET);
-		return false;
-	}
 
     return true;
 }

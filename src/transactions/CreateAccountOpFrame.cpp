@@ -5,6 +5,7 @@
 #include "util/asio.h"
 #include "transactions/CreateAccountOpFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
+#include "transactions/AssetsValidator.h"
 #include "util/Logging.h"
 #include "ledger/LedgerDelta.h"
 #include "ledger/TrustFrame.h"
@@ -80,6 +81,17 @@ CreateAccountOpFrame::doApply(Application& app,
     CreateAccountOpFrame::doApplyCreateScratch(Application& app, LedgerDelta& delta,
                             LedgerManager& ledgerManager)
     {
+		Database& db = app.getDatabase();
+		AssetsValidator assetsValidator(app, db);
+		if (!assetsValidator.isAssetAllowed(mCreateAccount.body.scratchCard().asset))
+		{
+			app.getMetrics().NewMeter({ "op-create-account", "invalid",
+				"malformed-scratch-card-asset-not-allowed" },
+				"operation").Mark();
+			innerResult().code(CREATE_ACCOUNT_ASSET_NOT_ALLOWED);
+			return false;
+		}
+
         // build a pathPaymentOp
         Operation op;
         op.sourceAccount = mOperation.sourceAccount;
@@ -162,14 +174,6 @@ CreateAccountOpFrame::doCheckValid(Application& app)
 				return false;
 			}
 
-			if (!isAssetValid(app.getIssuer(), mCreateAccount.body.scratchCard().asset))
-			{
-				app.getMetrics().NewMeter({ "op-create-account", "invalid",
-					"malformed-scratch-card-invalid-asset" },
-					"operation").Mark();
-				innerResult().code(CREATE_ACCOUNT_MALFORMED);
-				return false;
-			}
             break;
         case ACCOUNT_REGISTERED_USER:
         case ACCOUNT_MERCHANT:
