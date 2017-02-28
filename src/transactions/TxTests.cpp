@@ -17,6 +17,7 @@
 #include "ledger/ReversedPaymentFrame.h"
 #include "ledger/RefundedPaymentFrame.h"
 #include "ledger/AssetFrame.h"
+#include "ledger/StatisticsFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
@@ -144,8 +145,11 @@ checkAccount(AccountID const& id, Application& app)
 	std::vector<AssetFrame::pointer> retAssets;
 	AssetFrame::loadAssets(id, retAssets, app.getDatabase());
 
+	std::vector<StatisticsFrame::pointer> retStats;
+	StatisticsFrame::loadStatistics(id, retStats, app.getDatabase());
+
     size_t actualSubEntries =
-        res->getAccount().signers.size() + retLines.size() + retOffers.size() + retDatas.size() + retAssets.size();
+        res->getAccount().signers.size() + retLines.size() + retOffers.size() + retDatas.size() + retAssets.size() + retStats.size();
 
     REQUIRE(res->getAccount().numSubEntries == (uint32)actualSubEntries);
 }

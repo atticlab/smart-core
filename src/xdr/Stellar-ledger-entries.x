@@ -90,7 +90,8 @@ enum LedgerEntryType
     DATA = 3,
 	REVERSED_PAYMENT = 4,
     REFUNDED_PAYMENT = 5,
-	ASSET = 6
+	ASSET = 6,
+	STATISTICS = 7
 };
 
 struct Signer
@@ -286,6 +287,30 @@ struct AssetEntry
     ext;
 };
 
+struct StatisticsEntry
+{
+	AccountID accountID;
+    Asset asset;
+    AccountType counterpartyType;
+
+	int64 dailyIncome;
+	int64 dailyOutcome;
+	int64 monthlyIncome;
+	int64 monthlyOutcome;
+	int64 annualIncome;
+	int64 annualOutcome;
+
+	int64 updatedAt;
+
+    // reserved for future use
+    union switch (int v)
+    {
+    case 0:
+        void;
+    }
+    ext;
+};
+
 
 struct LedgerEntry
 {
@@ -307,6 +332,8 @@ struct LedgerEntry
         RefundEntry refundedPayment;
 	case ASSET:
 		AssetEntry asset;
+	case STATISTICS:
+		StatisticsEntry stats;
     }
     data;
 

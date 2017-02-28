@@ -88,6 +88,18 @@ struct LedgerEntryIdCmp
             return a.refundedPayment().rID < b.refundedPayment().rID;
 		case ASSET:
 			return a.asset().asset < b.asset().asset;
+		case STATISTICS:
+			auto const& aS = a.stats();
+			auto const& bS = b.stats();
+			if (aS.accountID < bS.accountID)
+				return true;
+			if (bS.accountID < aS.accountID)
+				return false;
+			if (aS.asset < bS.asset)
+				return true;
+			if (bS.asset < aS.asset)
+				return false;
+			return aS.counterpartyType < bS.counterpartyType;
         }
         return false;
     }

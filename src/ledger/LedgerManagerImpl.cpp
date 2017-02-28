@@ -15,6 +15,7 @@
 #include "ledger/LedgerHeaderFrame.h"
 #include "ledger/LedgerManagerImpl.h"
 #include "ledger/AssetFrame.h"
+#include "ledger/StatisticsFrame.h"
 #include "TrustFrame.h"
 #include "OfferFrame.h"
 #include "DataFrame.h"
@@ -825,6 +826,7 @@ LedgerManagerImpl::checkDbState()
     datas = DataFrame::loadAllData(getDatabase());
 
 	std::unordered_map<AccountID, std::vector<AssetFrame::pointer>> assets = AssetFrame::loadAllAssets(getDatabase());
+	std::unordered_map<AccountID, std::vector<StatisticsFrame::pointer>> statistics = StatisticsFrame::loadAllStatistics(getDatabase());
 
     for (auto& i : aData)
     {
@@ -853,6 +855,12 @@ LedgerManagerImpl::checkDbState()
 		if (itAsset != assets.end())
 		{
 			actualSubEntries += itAsset->second.size();
+		}
+
+		auto itStats = statistics.find(i.first);
+		if (itStats != statistics.end())
+		{
+			actualSubEntries += itStats->second.size();
 		}
 
         if (a.numSubEntries != (uint32)actualSubEntries)
@@ -889,6 +897,15 @@ LedgerManagerImpl::checkDbState()
 			throw std::runtime_error(
 				fmt::format("Unexpected asset found for account {}",
 					PubKeyUtils::toStrKey(as.first)));
+		}
+	}
+	for (auto& ss : statistics)
+	{
+		if (aData.find(ss.first) == aData.end())
+		{
+			throw std::runtime_error(
+				fmt::format("Unexpected statistics found for account {}",
+					PubKeyUtils::toStrKey(ss.first)));
 		}
 	}
 }

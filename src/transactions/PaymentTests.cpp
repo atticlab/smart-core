@@ -15,6 +15,7 @@
 #include "ledger/LedgerDelta.h"
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
+#include "ledger/StatisticsFrame.h"
 #include "crypto/SHA.h"
 
 using namespace stellar;
@@ -32,7 +33,7 @@ typedef std::unique_ptr<Application> appPtr;
 // path payment with a transfer rate
 TEST_CASE("payment", "[tx][payment]")
 {
-    Config cfg = getTestConfig();
+    Config cfg = getTestConfig(0, Config::TESTDB_POSTGRESQL);
 	auto commissionPass = "(V)(^,,,^)(V)";
 	auto commissionSeed = SecretKey::fromSeed(sha256(commissionPass));
 	cfg.BANK_COMMISSION_KEY = commissionSeed.getPublicKey();
@@ -121,6 +122,70 @@ TEST_CASE("payment", "[tx][payment]")
 
 		auto anonSeq = getAccountSeqNum(anonUser, app) + 1;
 		applyCreditPaymentTx(app, anonUser, root, aUAH, anonSeq++, paymentAmount - fee.fee().amountToCharge, nullptr);
+	}
+	SECTION("Statistics")
+	{
+		auto cad = makeAsset(root, "CAD");
+		applyManageAssetOp(app, root, rootSeq++, sk, cad, false, false);
+		auto source = SecretKey::random();
+		applyCreateAccountTx(app, root, source, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
+		SequenceNumber sourceSeq = getAccountSeqNum(source, app) + 1;
+		auto dest = SecretKey::random();
+		applyCreateAccountTx(app, root, dest, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
+		// initial payment from bank
+		int64 amount = 1235000;
+		OperationFee fee;
+		fee.type(OperationFeeType::opFEE_NONE);
+		applyCreditPaymentTx(app, root, source, cad, rootSeq++, amount, &sk, &fee);
+		// check source account stats
+		auto sourceBankStats = StatisticsFrame::loadStatistics(source.getPublicKey(), cad, AccountType::ACCOUNT_BANK, app.getDatabase());
+		REQUIRE(sourceBankStats);
+		REQUIRE(sourceBankStats->getStatistics().dailyIncome == amount);
+		// payment to dest with fee
+		fee.type(OperationFeeType::opFEE_CHARGED);
+		fee.fee().amountToCharge = amount / 2;
+		fee.fee().asset = cad;
+		applyCreditPaymentTx(app, source, dest, cad, sourceSeq++, amount, nullptr, &fee);
+		// check source stats
+		sourceBankStats = StatisticsFrame::loadStatistics(source.getPublicKey(), cad, AccountType::ACCOUNT_BANK, app.getDatabase());
+		REQUIRE(sourceBankStats);
+		REQUIRE(sourceBankStats->getStatistics().dailyIncome == amount);
+		auto sourceDestStats = StatisticsFrame::loadStatistics(source.getPublicKey(), cad, AccountType::ACCOUNT_REGISTERED_USER, app.getDatabase());
+		REQUIRE(sourceDestStats);
+		REQUIRE(sourceDestStats->getStatistics().dailyOutcome == amount);
+		// check dest stats
+		auto destSourceStats = StatisticsFrame::loadStatistics(dest.getPublicKey(), cad, AccountType::ACCOUNT_REGISTERED_USER, app.getDatabase());
+		REQUIRE(destSourceStats);
+		REQUIRE(destSourceStats->getStatistics().dailyIncome == amount / 2);
+		// check commission stats
+		auto comStats = StatisticsFrame::loadStatistics(commissionSeed.getPublicKey(), cad, AccountType::ACCOUNT_REGISTERED_USER, app.getDatabase());
+		REQUIRE(comStats);
+		REQUIRE(comStats->getStatistics().dailyIncome == amount / 2);
+
+		// send money back
+		SequenceNumber destSeq = getAccountSeqNum(dest, app) + 1;
+		fee.type(OperationFeeType::opFEE_CHARGED);
+		fee.fee().amountToCharge = amount / 4;
+		fee.fee().asset = cad;
+		applyCreditPaymentTx(app, dest, source, cad, destSeq++, amount / 2, nullptr, &fee);
+		// check source stats
+		sourceBankStats = StatisticsFrame::loadStatistics(source.getPublicKey(), cad, AccountType::ACCOUNT_BANK, app.getDatabase());
+		REQUIRE(sourceBankStats);
+		REQUIRE(sourceBankStats->getStatistics().dailyIncome == amount);
+		sourceDestStats = StatisticsFrame::loadStatistics(source.getPublicKey(), cad, AccountType::ACCOUNT_REGISTERED_USER, app.getDatabase());
+		REQUIRE(sourceDestStats);
+		REQUIRE(sourceDestStats->getStatistics().dailyOutcome == amount);
+		REQUIRE(sourceDestStats->getStatistics().dailyIncome == amount/4);
+		// check dest stats
+		destSourceStats = StatisticsFrame::loadStatistics(dest.getPublicKey(), cad, AccountType::ACCOUNT_REGISTERED_USER, app.getDatabase());
+		REQUIRE(destSourceStats);
+		REQUIRE(destSourceStats->getStatistics().dailyIncome == amount / 2);
+		REQUIRE(destSourceStats->getStatistics().dailyOutcome == amount / 2);
+		// check commission stats
+		comStats = StatisticsFrame::loadStatistics(commissionSeed.getPublicKey(), cad, AccountType::ACCOUNT_REGISTERED_USER, app.getDatabase());
+		REQUIRE(comStats);
+		REQUIRE(comStats->getStatistics().dailyIncome == (amount / 2) + (amount / 4));
+
 	}
 	SECTION("payment") 
 	{

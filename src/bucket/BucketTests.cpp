@@ -500,6 +500,44 @@ TEST_CASE("merging bucket entries", "[bucket][entries]")
 		CHECK(countEntries(b1) == 1);
 	}
 
+	SECTION("stats random dead entries annihilates live entries")
+	{
+		std::vector<LedgerEntry> live(10);
+		std::vector<LedgerKey> dead;
+		for (auto& e : live)
+		{
+			e.data.type(STATISTICS);
+			e.data.stats() = LedgerTestUtils::generateValidStatsEntry(10);
+			if (flip())
+			{
+				dead.push_back(LedgerEntryKey(e));
+			}
+		}
+		std::shared_ptr<Bucket> b1 =
+			Bucket::fresh(app->getBucketManager(), live, dead);
+		CHECK(countEntries(b1) == live.size());
+		auto liveCount = b1->countLiveAndDeadEntries().first;
+		CLOG(DEBUG, "Bucket") << "post-merge live count: " << liveCount
+			<< " of " << live.size();
+		CHECK(liveCount == live.size() - dead.size());
+	}
+
+	SECTION("dead statistics entry annihilates live statistics entry")
+	{
+		liveEntry.data.type(STATISTICS);
+		liveEntry.data.stats() =
+			LedgerTestUtils::generateValidStatsEntry(10);
+		deadEntry.type(STATISTICS);
+		deadEntry.stats().accountID = liveEntry.data.stats().accountID;
+		deadEntry.stats().asset = liveEntry.data.stats().asset;
+		deadEntry.stats().counterpartyType = liveEntry.data.stats().counterpartyType;
+		std::vector<LedgerEntry> live{ liveEntry };
+		std::vector<LedgerKey> dead{ deadEntry };
+		std::shared_ptr<Bucket> b1 =
+			Bucket::fresh(app->getBucketManager(), live, dead);
+		CHECK(countEntries(b1) == 1);
+	}
+
     SECTION("random dead entries annihilates live entries")
     {
         std::vector<LedgerEntry> live(100);

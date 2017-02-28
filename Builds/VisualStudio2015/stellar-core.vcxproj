@@ -191,6 +191,7 @@
     <ClCompile Include="..\..\src\ledger\OfferFrame.cpp" />
     <ClCompile Include="..\..\src\ledger\RefundedPaymentFrame.cpp" />
     <ClCompile Include="..\..\src\ledger\ReversedPaymentFrame.cpp" />
+    <ClCompile Include="..\..\src\ledger\StatisticsFrame.cpp" />
     <ClCompile Include="..\..\src\ledger\TrustFrame.cpp" />
     <ClCompile Include="..\..\lib\asio\src\asio.cpp" />
     <ClCompile Include="..\..\lib\http\connection.cpp" />
@@ -270,6 +271,7 @@
     <ClCompile Include="..\..\src\transactions\AllowTrustOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\AssetsValidator.cpp" />
     <ClCompile Include="..\..\src\transactions\AssetsValidatorTests.cpp" />
+    <ClCompile Include="..\..\src\transactions\BalanceManager.cpp" />
     <ClCompile Include="..\..\src\transactions\ChangeTrustTests.cpp" />
     <ClCompile Include="..\..\src\transactions\CreateAccountOpFrame.cpp" />
     <ClCompile Include="..\..\src\transactions\CreatePassiveOfferOpFrame.cpp" />
@@ -354,6 +356,7 @@
     <ClInclude Include="..\..\src\ledger\LedgerTestUtils.h" />
     <ClInclude Include="..\..\src\ledger\RefundedPaymentFrame.h" />
     <ClInclude Include="..\..\src\ledger\ReversedPaymentFrame.h" />
+    <ClInclude Include="..\..\src\ledger\StatisticsFrame.h" />
     <ClInclude Include="..\..\src\main\ExternalQueue.h" />
     <ClInclude Include="..\..\src\overlay\LoadManager.h" />
     <ClInclude Include="..\..\src\overlay\PeerAuth.h" />
@@ -422,6 +425,7 @@
     <ClInclude Include="..\..\src\transactions\AdministrativeOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\AllowTrustOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\AssetsValidator.h" />
+    <ClInclude Include="..\..\src\transactions\BalanceManager.h" />
     <ClInclude Include="..\..\src\transactions\CreateAccountOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\CreatePassiveOfferOpFrame.h" />
     <ClInclude Include="..\..\src\transactions\ManageAssetOpFrame.h" />

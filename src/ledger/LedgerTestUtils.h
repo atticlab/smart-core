@@ -36,5 +36,8 @@ std::vector<OfferEntry> generateValidOfferEntries(size_t n);
 
 AssetEntry generateValidAssetEntry(size_t b = 3);
 std::vector<AssetEntry> generateValidAssetEntries(size_t n);
+
+StatisticsEntry generateValidStatsEntry(size_t b = 3);
+std::vector<StatisticsEntry> generateValidStatsEntries(size_t n);
 }
 }

@@ -137,6 +137,13 @@ case ASSET:
 	{
 		Asset asset;
 	} asset;
+case STATISTICS:
+	struct
+	{
+		AccountID accountID;
+		Asset asset;
+		AccountType counterpartyType;
+	} stats;
 };
 
 enum BucketEntryType

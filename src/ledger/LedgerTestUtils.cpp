@@ -142,6 +142,21 @@ makeValid(OfferEntry& o)
 }
 
 void
+makeValid(StatisticsEntry& o)
+{
+	o.accountID = SecretKey::random().getPublicKey();
+	o.asset.type(ASSET_TYPE_CREDIT_ALPHANUM4);
+	strToAssetCode(o.asset.alphaNum4().assetCode, "UAH");
+
+	clampLow<int64_t>(0, o.dailyIncome);
+	clampLow<int64_t>(o.dailyIncome, o.monthlyIncome);
+	clampLow<int64_t>(o.monthlyIncome, o.annualIncome);
+	clampLow<int64_t>(0, o.dailyOutcome);
+	clampLow<int64_t>(o.dailyOutcome, o.monthlyOutcome);
+	clampLow<int64_t>(o.monthlyOutcome, o.annualOutcome);
+}
+
+void
 makeValid(DataEntry& d)
 {
     stripControlCharacters(d.dataName);
@@ -176,6 +191,9 @@ static auto validLedgerEntryGenerator = autocheck::map(
 			break;
 		case ASSET:
 			makeValid(led.asset());
+			break;
+		case STATISTICS:
+			makeValid(led.stats());
 			break;
         }
 
@@ -214,6 +232,14 @@ static auto validOfferEntryGenerator = autocheck::map(
         return o;
     },
     autocheck::generator<OfferEntry>());
+
+static auto validStatisticsEntryGenerator = autocheck::map(
+	[](StatisticsEntry&& ae, size_t s)
+{
+	makeValid(ae);
+	return ae;
+},
+autocheck::generator<StatisticsEntry>());
 
 LedgerEntry
 generateValidLedgerEntry(size_t b)
@@ -277,6 +303,19 @@ std::vector<AssetEntry>
 generateValidAssetEntries(size_t n)
 {
 	static auto vecgen = autocheck::list_of(validAssetEntryGenerator);
+	return vecgen(n);
+}
+
+StatisticsEntry
+generateValidStatsEntry(size_t b)
+{
+	return validStatisticsEntryGenerator(b);
+}
+
+std::vector<StatisticsEntry>
+generateValidStatsEntries(size_t n)
+{
+	static auto vecgen = autocheck::list_of(validStatisticsEntryGenerator);
 	return vecgen(n);
 }
 

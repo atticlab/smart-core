@@ -570,6 +570,12 @@
     <ClCompile Include="..\..\src\transactions\AssetsValidatorTests.cpp">
       <Filter>transactions\validators\test</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ledger\StatisticsFrame.cpp">
+      <Filter>ledger</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\transactions\BalanceManager.cpp">
+      <Filter>transactions\validators</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\ledger\LedgerManager.h">
@@ -978,6 +984,12 @@
       <Filter>ledger</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\transactions\AssetsValidator.h">
+      <Filter>transactions\validators</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ledger\StatisticsFrame.h">
+      <Filter>ledger</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\transactions\BalanceManager.h">
       <Filter>transactions\validators</Filter>
     </ClInclude>
   </ItemGroup>

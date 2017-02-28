@@ -11,6 +11,7 @@
 #include "ledger/ReversedPaymentFrame.h"
 #include "ledger/RefundedPaymentFrame.h"
 #include "ledger/AssetFrame.h"
+#include "ledger/StatisticsFrame.h"
 #include "ledger/LedgerDelta.h"
 #include "xdrpp/printer.h"
 #include "xdrpp/marshal.h"
@@ -48,6 +49,9 @@ EntryFrame::FromXDR(LedgerEntry const& from)
         break;
 	case ASSET:
 		res = std::make_shared<AssetFrame>(from);
+		break;
+	case STATISTICS:
+		res = std::make_shared<StatisticsFrame>(from);
 		break;
     }
     return res;
@@ -105,6 +109,12 @@ EntryFrame::storeLoad(LedgerKey const& key, Database& db)
 		auto const& as = key.asset();
 		res = std::static_pointer_cast<EntryFrame>(
 			AssetFrame::loadAsset(as.asset, db));
+	}
+	break;
+	case STATISTICS:
+	{
+		auto const& ss = key.stats();
+		res = std::static_pointer_cast<EntryFrame>(StatisticsFrame::loadStatistics(ss.accountID, ss.asset, ss.counterpartyType, db));
 	}
 	break;
             
@@ -251,6 +261,8 @@ EntryFrame::exists(Database& db, LedgerKey const& key)
         return RefundedPaymentFrame::exists(db, key);
 	case ASSET:
 		return AssetFrame::exists(db, key);
+	case STATISTICS:
+		return StatisticsFrame::exists(db, key);
     default:
         abort();
     }
@@ -280,6 +292,9 @@ EntryFrame::storeDelete(LedgerDelta& delta, Database& db, LedgerKey const& key)
         RefundedPaymentFrame::storeDelete(delta, db, key);
         break;
 	case ASSET:
+		AssetFrame::storeDelete(delta, db, key);
+		break;
+	case STATISTICS:
 		AssetFrame::storeDelete(delta, db, key);
 		break;
     }
@@ -326,6 +341,12 @@ LedgerEntryKey(LedgerEntry const& e)
 	case ASSET:
 		k.type(ASSET);
 		k.asset().asset = d.asset().asset;
+		break;
+	case STATISTICS:
+		k.type(STATISTICS);
+		k.stats().accountID = d.stats().accountID;
+		k.stats().asset = d.stats().asset;
+		k.stats().counterpartyType = d.stats().counterpartyType;
 		break;
     }
     return k;
