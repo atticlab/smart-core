@@ -74,7 +74,7 @@ bool
 isAssetValid(Asset const& cur)
 {
     if (cur.type() == ASSET_TYPE_NATIVE)
-        return true;
+        return false;
 
     if (cur.type() == ASSET_TYPE_CREDIT_ALPHANUM4)
     {

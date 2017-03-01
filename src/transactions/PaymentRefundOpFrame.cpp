@@ -155,6 +155,30 @@ PaymentRefundOpFrame::doApply(Application& app, LedgerDelta& delta,
 					"operation").Mark();
 				res = REFUND_ASSET_NOT_ALLOWED;
 				break;
+			case PATH_PAYMENT_SRC_ASSET_LIMITS_EXCEEDED:
+				app.getMetrics().NewMeter({ "op-refund", "failure", "src-asset-limit-exceeded" }, "operation").Mark();
+				res = REFUND_SRC_ASSET_LIMITS_EXCEEDED;
+				break;
+			case PATH_PAYMENT_DEST_ASSET_LIMITS_EXCEEDED:
+				app.getMetrics().NewMeter({ "op-refund", "failure", "dest-asset-limit-exceeded" }, "operation").Mark();
+				res = REFUND_DEST_ASSET_LIMITS_EXCEEDED;
+				break;
+			case PATH_PAYMENT_COMMISSION_ASSET_LIMITS_EXCEEDED:
+				app.getMetrics().NewMeter({ "op-refund", "failure", "com-asset-limit-exceeded" }, "operation").Mark();
+				res = REFUND_COMMISSION_ASSET_LIMITS_EXCEEDED;
+				break;
+			case PATH_PAYMENT_SRC_STATS_OVERFLOW:
+				app.getMetrics().NewMeter({ "op-refund", "failure", "src-stats-overflow" }, "operation").Mark();
+				res = REFUND_SRC_STATS_OVERFLOW;
+				break;
+			case PATH_PAYMENT_DEST_STATS_OVERFLOW:
+				app.getMetrics().NewMeter({ "op-refund", "failure", "src-stats-overflow" }, "operation").Mark();
+				res = REFUND_DEST_STATS_OVERFLOW;
+				break;
+			case PATH_PAYMENT_COM_STATS_OVERFLOW:
+				app.getMetrics().NewMeter({ "op-refund", "failure", "src-stats-overflow" }, "operation").Mark();
+				res = REFUND_COM_STATS_OVERFLOW;
+				break;
             default:
                 throw std::runtime_error("Unexpected error code from pathPayment");
         }

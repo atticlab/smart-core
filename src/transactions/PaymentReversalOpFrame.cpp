@@ -4,6 +4,7 @@
 
 #include "util/asio.h"
 #include "transactions/PaymentReversalOpFrame.h"
+#include "transactions/BalanceManager.h"
 #include "util/Logging.h"
 #include "ledger/LedgerDelta.h"
 #include "ledger/TrustFrame.h"
@@ -28,7 +29,7 @@ PaymentReversalOpFrame::PaymentReversalOpFrame(Operation const& op, OperationRes
 }
 
 bool PaymentReversalOpFrame::checkAllowed() {
-	return true;
+	return mSourceAccount->isAgent();
 }
 
 bool PaymentReversalOpFrame::checkAlreadyReversed(LedgerDelta& delta, Database& db) {
@@ -59,15 +60,6 @@ PaymentReversalOpFrame::doApply(Application& app, LedgerDelta& delta,
 	}
 
 	Database& db = ledgerManager.getDatabase();
-	AssetsValidator assetsValidator(app, db);
-	if (!assetsValidator.isAssetAllowed(mPaymentReversal.asset))
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "asset-not-allowed" },
-			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
-		return false;
-	}
-
 	if (!checkAlreadyReversed(delta, db)) {
 		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "already-reversed" },
 			"operation").Mark();
@@ -75,124 +67,125 @@ PaymentReversalOpFrame::doApply(Application& app, LedgerDelta& delta,
 		return false;
 	}
 
-	// Handle commission
+	BalanceManager balanceManager(app, db, delta, ledgerManager, mParentTx);
 
-	auto commissionDestLine = TrustFrame::loadTrustLine(app.getConfig().BANK_COMMISSION_KEY, mPaymentReversal.asset, db, &delta);
-	if (!commissionDestLine || !commissionDestLine->addBalance(-mPaymentReversal.commissionAmount)) {
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "comission-dest-low-reserve" },
+	auto paymentSource = AccountFrame::loadAccount(mPaymentReversal.paymentSource, db);
+	if (!paymentSource)
+	{
+		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "no-payment-sender" },
 			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED);
+		innerResult().code(PAYMENT_REVERSAL_NO_PAYMENT_SENDER);
 		return false;
 	}
 
-	commissionDestLine->storeChange(delta, db);
-
-	// Handle payment reversal source
-	TrustFrame::pointer sourceLineFrame;
-	auto issuerTrustLine = TrustFrame::loadTrustLineIssuer(getSourceID(), mPaymentReversal.asset, db, delta);
-	if (!issuerTrustLine.second)
+	auto paymentSourceResult = balanceManager.add(paymentSource, mPaymentReversal.asset, -mPaymentReversal.amount, false, AccountType(mSourceAccount->getAccount().accountType), mPaymentReversal.performedAt);
+	switch (paymentSourceResult)
 	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "no-issuer" },
-			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_NO_ISSUER);
+	case BalanceManager::ASSET_NOT_ALLOWED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "invalid", "malformed-currencies" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
 		return false;
-	}
-
-	bool sourceLineExists = !!issuerTrustLine.first;
-	if (!sourceLineExists)
-	{
-		if (getSourceID() == getIssuer(mPaymentReversal.asset))
-		{
-			auto line = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, mSourceAccount, mPaymentReversal.asset);
-			sourceLineExists = !!line;
-			sourceLineFrame = line;
-		}
-	}
-	else
-	{
-		sourceLineFrame = issuerTrustLine.first;
-	}
-
-	if (!sourceLineExists)
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "src-no-trust" },
-			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_SRC_NO_TRUST);
-		return false;
-	}
-
-	if (!sourceLineFrame->isAuthorized())
-	{
-		app.getMetrics().NewMeter(
-		{ "op-reversal-payment", "failure", "src-not-authorized" },
-			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_SRC_NOT_AUTHORIZED);
-		return false;
-	}
-
-	int64 sourceRecieved = mPaymentReversal.amount - mPaymentReversal.commissionAmount;
-
-	if (!sourceLineFrame->addBalance(-sourceRecieved))
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "underfunded" },
-			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_UNDERFUNDED);
-		return false;
-	}
-
-	sourceLineFrame->storeChange(delta, db);
-
-	// Handle destination
-	TrustFrame::pointer destLine;
-
-	auto tlI = TrustFrame::loadTrustLineIssuer(mPaymentReversal.paymentSource, mPaymentReversal.asset, db, delta);
-	if (!tlI.second)
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "no-issuer" },
-			"operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_NO_ISSUER);
-		return false;
-	}
-
-	destLine = tlI.first;
-
-	if (!destLine)
-	{
-		auto destination = AccountFrame::loadAccount(delta, mPaymentReversal.paymentSource, db);
-		if (!destination) {
-			app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "no-payment-sender" },
-				"operation").Mark();
-			innerResult().code(PAYMENT_REVERSAL_NO_PAYMENT_SENDER);
-			return false;
-		}
-
-		destLine = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, destination, mPaymentReversal.asset);
-	}
-
-	if (!destLine)
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "no-payment-sender-trust" }, "operation").Mark();
-		innerResult().code(PAYMENT_REVERSAL_NO_PAYMENT_SENDER_TRUST);
-		return false;
-	}
-
-	if (!destLine->isAuthorized())
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "payment-sender-not-authorized" },
-			"operation").Mark();
+	case BalanceManager::NOT_AUTHORIZED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "paymet-sender-not-authorized" }, "operation").Mark();
 		innerResult().code(PAYMENT_REVERSAL_PAYMENT_SENDER_NOT_AUTHORIZED);
 		return false;
-	}
-
-	if (!destLine->addBalance(mPaymentReversal.amount))
-	{
-		app.getMetrics().NewMeter({ "op-reversal-payment", "failure", "payment-sender-line-full" },
-			"operation").Mark();
+	case BalanceManager::NO_TRUST_LINE:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-sender-no-trust" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_NO_PAYMENT_SENDER_TRUST);
+		return false;
+	case BalanceManager::LINE_FULL:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-sender-line-full" }, "operation").Mark();
 		innerResult().code(PAYMENT_REVERSAL_PAYMENT_SENDER_LINE_FULL);
 		return false;
+	case BalanceManager::UNDERFUNDED:
+		throw std::runtime_error("Unexpected error for refersal payment sender UNDERFUNDED!");
+	case BalanceManager::ASSET_LIMITS_EXCEEDED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-sender-asset-limits-exceeded" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_DEST_ASSET_LIMITS_EXCEEDED);
+		return false;
+	case BalanceManager::STATS_OVERFLOW:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-sender-stats-overflow" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_DEST_STATS_OVERFLOW);
+		return false;
+	case BalanceManager::SUCCESS:
+		break;
+	default:
+		throw std::runtime_error("Unexpected response from balance manager for payment sender!");
 	}
 
-	destLine->storeChange(delta, db);
+
+	auto paymentDestResult = balanceManager.add(mSourceAccount, mPaymentReversal.asset, -(mPaymentReversal.amount - mPaymentReversal.commissionAmount), true, AccountType(paymentSource->getAccount().accountType), mPaymentReversal.performedAt);
+	switch (paymentDestResult)
+	{
+	case BalanceManager::ASSET_NOT_ALLOWED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "invalid", "malformed-currencies" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
+		return false;
+	case BalanceManager::NOT_AUTHORIZED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "paymet-dest-not-authorized" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_SRC_NOT_AUTHORIZED);
+		return false;
+	case BalanceManager::NO_TRUST_LINE:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "paymet-dest-no-trust" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_SRC_NO_TRUST);
+		return false;
+	case BalanceManager::LINE_FULL:
+		throw std::runtime_error("Unexpected error for refersal payment sender LINE_FULL!");
+	case BalanceManager::UNDERFUNDED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "paymet-dest-full" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_UNDERFUNDED);
+		return false;
+	case BalanceManager::ASSET_LIMITS_EXCEEDED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-dest-asset-limits-exceeded" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_SRC_ASSET_LIMITS_EXCEEDED);
+		return false;
+	case BalanceManager::STATS_OVERFLOW:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-dest-stats-overflow" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_SRC_STATS_OVERFLOW);
+		return false;
+	case BalanceManager::SUCCESS:
+		break;
+	default:
+		throw std::runtime_error("Unexpected response from balance manager for payment dest!");
+	}
+
+	// Handle commission
+	auto commission = AccountFrame::loadAccount(app.getConfig().BANK_COMMISSION_KEY, db);
+	assert(!!commission);
+	auto commissionResult = balanceManager.add(commission, mPaymentReversal.asset, -mPaymentReversal.commissionAmount, true, AccountType(paymentSource->getAccount().accountType), mPaymentReversal.performedAt);
+	switch (commissionResult)
+	{
+	case BalanceManager::ASSET_NOT_ALLOWED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "invalid", "malformed-currencies" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
+		return false;
+	case BalanceManager::NOT_AUTHORIZED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "paymet-commission-not-authorized" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_SRC_NOT_AUTHORIZED);
+		return false;
+	case BalanceManager::NO_TRUST_LINE:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "paymet-commission-no-trust" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED);
+		return false;
+	case BalanceManager::LINE_FULL:
+		throw std::runtime_error("Unexpected error for refersal payment commission LINE_FULL!");
+	case BalanceManager::UNDERFUNDED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "paymet-commission-full" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED);
+		return false;
+	case BalanceManager::ASSET_LIMITS_EXCEEDED:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-com-asset-limits-exceeded" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_COMMISSION_ASSET_LIMITS_EXCEEDED);
+		return false;
+	case BalanceManager::STATS_OVERFLOW:
+		app.getMetrics().NewMeter({ "op-payment-reversal", "failure", "payment-dest-stats-overflow" }, "operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_COM_STATS_OVERFLOW);
+		return false;
+	case BalanceManager::SUCCESS:
+		break;
+	default:
+		throw std::runtime_error("Unexpected response from balance manager for payment commission!");
+	}
 
 	innerResult().code(PAYMENT_REVERSAL_SUCCESS);
 	return true;
@@ -201,6 +194,15 @@ PaymentReversalOpFrame::doApply(Application& app, LedgerDelta& delta,
 bool
 PaymentReversalOpFrame::doCheckValid(Application& app)
 {
+
+	if (mPaymentReversal.performedAt <= 0)
+	{
+		app.getMetrics().NewMeter({ "op-reversal-payment", "invalid", "malformed-performed-at" },
+			"operation").Mark();
+		innerResult().code(PAYMENT_REVERSAL_MALFORMED);
+		return false;
+	}
+
     if (mPaymentReversal.amount <= 0)
     {
         app.getMetrics().NewMeter({"op-reversal-payment", "invalid", "malformed-amount"},
@@ -209,7 +211,7 @@ PaymentReversalOpFrame::doCheckValid(Application& app)
         return false;
     }
     
-	if (mPaymentReversal.commissionAmount < 0)
+	if (mPaymentReversal.commissionAmount < 0 || mPaymentReversal.commissionAmount > mPaymentReversal.amount)
 	{
 		app.getMetrics().NewMeter({ "op-reversal-payment", "invalid", "malformed-negative-commission" },
 			"operation").Mark();

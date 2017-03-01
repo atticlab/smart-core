@@ -275,8 +275,17 @@ struct RefundEntry
 
 struct AssetEntry
 {
-    Asset asset; // A
+    Asset asset;
     bool isAnonymous;
+
+	//restrictions
+	int64 maxBalance;
+	int64 maxDailyIn;
+	int64 maxDailyOut;
+	int64 maxMonthlyIn;
+	int64 maxMonthlyOut;
+	int64 maxAnnualIn;
+	int64 maxAnnualOut;
 
     // reserved for future use
     union switch (int v)

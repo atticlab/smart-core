@@ -375,37 +375,41 @@ StatisticsFrame::storeUpdateHelper(LedgerDelta& delta, Database& db, bool insert
     }
 }
 
-void StatisticsFrame::clearObsolete(time_t rawCurrentTime)
+bool StatisticsFrame::clearObsolete(time_t rawCurrentTime)
 {
-	struct tm* currentTime = std::localtime(&rawCurrentTime);
-	struct tm* timeUpdated = std::localtime(&mStatistics.updatedAt);
-	bool isYear = timeUpdated->tm_year < currentTime->tm_year;
+	auto currentTime = *std::localtime(&rawCurrentTime);
+	auto timeUpdated = *std::localtime(&mStatistics.updatedAt);
+	bool isYear = timeUpdated.tm_year < currentTime.tm_year;
 	if (isYear) 
 	{
 		mStatistics.annualIncome = 0;
 		mStatistics.annualOutcome = 0;
 	}
 
-	bool isMonth = isYear || timeUpdated->tm_mon < currentTime->tm_mon;
+	bool isMonth = isYear || timeUpdated.tm_mon < currentTime.tm_mon;
 	if (isMonth)
 	{
 		mStatistics.monthlyIncome = 0;
 		mStatistics.monthlyOutcome = 0;
 	}
 
-	bool isDay = isMonth || timeUpdated->tm_yday < currentTime->tm_yday;
+	bool isDay = isMonth || timeUpdated.tm_yday < currentTime.tm_yday;
 	if (isDay)
 	{
 		mStatistics.dailyIncome = 0;
 		mStatistics.dailyOutcome = 0;
 	}
+
+	mStatistics.updatedAt = rawCurrentTime;
+
+	return isDay;
 }
 
 bool StatisticsFrame::add(int64 income, int64 outcome, time_t rawCurrentTime, time_t rawTimePerformed)
 {
-	struct tm* currentTime = std::localtime(&rawCurrentTime);
-	struct tm* timePerformed = std::localtime(&rawTimePerformed);
-	if (currentTime->tm_year != timePerformed->tm_year)
+	auto currentTime = *std::localtime(&rawCurrentTime);
+	auto timePerformed = *std::localtime(&rawTimePerformed);
+	if (currentTime.tm_year != timePerformed.tm_year)
 	{
 		return true;
 	}
@@ -416,7 +420,7 @@ bool StatisticsFrame::add(int64 income, int64 outcome, time_t rawCurrentTime, ti
 		return false;
 	}
 
-	if (currentTime->tm_mon != timePerformed->tm_mon)
+	if (currentTime.tm_mon != timePerformed.tm_mon)
 	{
 		return true;
 	}
@@ -427,7 +431,7 @@ bool StatisticsFrame::add(int64 income, int64 outcome, time_t rawCurrentTime, ti
 		return false;
 	}
 
-	if (currentTime->tm_yday != timePerformed->tm_yday)
+	if (currentTime.tm_yday != timePerformed.tm_yday)
 	{
 		return true;
 	}

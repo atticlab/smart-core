@@ -34,4 +34,11 @@ namespace stellar
 		key.asset().asset = asset;
 		return AssetFrame::exists(mDb, key);
 	}
+
+	AssetFrame::pointer AssetsValidator::getAllowedAsset(Asset const& asset, LedgerDelta* delta) const
+	{
+		if (!isAssetValid(asset))
+			return nullptr;
+		return AssetFrame::loadAsset(asset, mDb, delta);
+	}
 }

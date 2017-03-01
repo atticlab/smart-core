@@ -961,7 +961,7 @@ void applyAdminOp(
 }
 
 TransactionFramePtr createPaymentReversalOp(Hash const& networkID, SecretKey& source, SequenceNumber seq,
-	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount)
+	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount, int64 performedAt)
 {
 	Operation op;
 	op.body.type(PAYMENT_REVERSAL);
@@ -971,16 +971,17 @@ TransactionFramePtr createPaymentReversalOp(Hash const& networkID, SecretKey& so
 	reversal.asset = asset;
 	reversal.amount = amount;
 	reversal.commissionAmount = commissionAmount;
+	reversal.performedAt = performedAt;
 	auto tx = transactionFromOperation(networkID, source, seq, op);
 	return tx;
 }
 
 void applyPaymentReversalOp(Application& app, SecretKey& source, SequenceNumber seq,
-	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount,
+	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount, int64 performedAt,
 	PaymentReversalResultCode targetResult)
 {
 	TransactionFramePtr txFrame =
-		createPaymentReversalOp(app.getNetworkID(), source, seq, paymentID, paymentSource, asset, amount, commissionAmount);
+		createPaymentReversalOp(app.getNetworkID(), source, seq, paymentID, paymentSource, asset, amount, commissionAmount, performedAt);
 
 	LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
 		app.getDatabase());

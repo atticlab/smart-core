@@ -36,18 +36,24 @@ TEST_CASE("change trust", "[tx][changetrust]")
 
     SecretKey account = getAccount("gw");
 
+	applyCreateAccountTx(app, root, account, rootSeq++, 0, &admin, CreateAccountResultCode::CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
+	SequenceNumber accountSeq = getAccountSeqNum(account, app) + 1;
+	Asset idrCur = makeAsset(root, "IDR");
+	applyManageAssetOp(app, root, rootSeq++, admin, idrCur, false, false);
+
+	SECTION("Asset not allowed")
+	{
+		applyChangeTrust(app, account, root, accountSeq++, "USD", 0,
+			CHANGE_TRUST_ASSET_NOT_ALLOWED);
+	}
+	SECTION("Anonymous user can't create trust line to non anon asset")
+	{
+		auto anonUser = SecretKey::random();
+		applyCreateAccountTx(app, root, anonUser, rootSeq++, 0, &admin, CreateAccountResultCode::CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_ANONYMOUS_USER);
+		applyChangeTrust(app, anonUser, root, accountSeq++, "IDR", 0, CHANGE_TRUST_NOT_AUTHORIZED);
+	}
     SECTION("basic tests")
 	{
-        applyCreateAccountTx(app, root, account, rootSeq++, 0, &admin);
-        SequenceNumber accountSeq = getAccountSeqNum(account, app) + 1;
-		SECTION("Asset not allowed")
-		{
-			applyChangeTrust(app, account, root, accountSeq++, "USD", 0,
-				CHANGE_TRUST_ASSET_NOT_ALLOWED);
-		}
-
-        Asset idrCur = makeAsset(root, "IDR");
-		applyManageAssetOp(app, root, rootSeq++, admin, idrCur, false, false);
 
         // create a trustline with a limit of 0
         applyChangeTrust(app, account, root, accountSeq++, "IDR", 0,

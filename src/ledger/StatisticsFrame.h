@@ -31,6 +31,7 @@ class StatisticsFrame : public EntryFrame
 
   public:
     typedef std::shared_ptr<StatisticsFrame> pointer;
+	typedef std::unordered_map<AccountType, StatisticsFrame::pointer> accountCounterpartyStats;
 
     StatisticsFrame();
     StatisticsFrame(LedgerEntry const& from);
@@ -54,7 +55,8 @@ class StatisticsFrame : public EntryFrame
         return mStatistics;
     }
 
-	void clearObsolete(time_t currentTime);
+	// returns true if there were osolete stats
+	bool clearObsolete(time_t currentTime);
 	bool add(int64 income, int64 outcome, time_t currentTime, time_t timePerformed);
 
     static bool isValid(StatisticsEntry const& oe);

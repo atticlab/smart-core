@@ -4,6 +4,7 @@
 
 #include "main/Application.h"
 #include "ledger/LedgerManager.h"
+#include "ledger/StatisticsFrame.h"
 #include "main/Config.h"
 #include "util/Timer.h"
 #include "overlay/LoopbackPeer.h"
@@ -77,21 +78,23 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 
 	int64 paymentID = rand();
 
+	int64 now = app.getLedgerManager().getCloseTime();
+
 	SECTION("Malformed payment reversal")
 	{
 		SECTION("Invalid amount")
 		{
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, -paymentAmount, commissionAmount, PAYMENT_REVERSAL_MALFORMED);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, -paymentAmount, commissionAmount, now, PAYMENT_REVERSAL_MALFORMED);
 		}
 		SECTION("Invalid commission amount")
 		{
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, -commissionAmount, PAYMENT_REVERSAL_MALFORMED);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, -commissionAmount, now, PAYMENT_REVERSAL_MALFORMED);
 		}
 		SECTION("Invalid asset")
 		{
 			Asset native;
 			native.type(ASSET_TYPE_NATIVE);
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, native, paymentAmount, commissionAmount, PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, native, paymentAmount, commissionAmount, now, PAYMENT_REVERSAL_ASSET_NOT_ALLOWED);
 		}
 	}
 	SECTION("Commission")
@@ -100,27 +103,32 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 		{
 			auto eur = makeAsset(root, "EUR");
 			applyManageAssetOp(app, root, rootSeq++, sk, eur, false, false);
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, eur, paymentAmount, commissionAmount, PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED);
-		}
-		SECTION("Commission account is underfunded")
-		{
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, commissionAmount + 1, PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED);
+			applyCreditPaymentTx(app, root, account, eur, rootSeq++, paymentAmount, &sk);
+			applyCreditPaymentTx(app, account, agent, eur, accountSeq++, paymentAmount);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, eur, paymentAmount, commissionAmount, now, PAYMENT_REVERSAL_COMMISSION_UNDERFUNDED);
 		}
 	}
 	SECTION("Source")
 	{
+		auto eur = makeAsset(root, "EUR");
+		applyManageAssetOp(app, root, rootSeq++, sk, eur, false, false);
 		SECTION("Trust line does not exists")
 		{
-			auto eur = makeAsset(root, "EUR");
-			applyManageAssetOp(app, root, rootSeq++, sk, eur, false, false);
 			applyChangeTrust(app, commissionAccount, root, commissionSeq++, "EUR", INT64_MAX);
 			applyCreditPaymentTx(app, root, commissionAccount, eur, rootSeq++, commissionAmount, &sk);
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, eur, paymentAmount, commissionAmount, PAYMENT_REVERSAL_SRC_NO_TRUST);
+			applyCreditPaymentTx(app, root, account, eur, rootSeq++, paymentAmount, &sk);
+			applyCreditPaymentTx(app, account, agent, eur, accountSeq++, paymentAmount);
+			applyCreditPaymentTx(app, agent, root, eur, agentSeq++, paymentAmount);
+			applyChangeTrust(app, agent, root, agentSeq++, "EUR", 0);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, eur, paymentAmount, commissionAmount, now, PAYMENT_REVERSAL_SRC_NO_TRUST);
 
 		}
 		SECTION("Source line underfunded")
 		{
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount + 1, commissionAmount, PAYMENT_REVERSAL_UNDERFUNDED);
+			applyCreditPaymentTx(app, root, account, eur, rootSeq++, paymentAmount+1, &sk);
+			applyCreditPaymentTx(app, account, agent, eur, accountSeq++, paymentAmount+1);
+			applyCreditPaymentTx(app, agent, root, eur, agentSeq++, paymentAmount+1);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, eur, paymentAmount+1, commissionAmount, now, PAYMENT_REVERSAL_UNDERFUNDED);
 		}
 	}
 	SECTION("Payment sender")
@@ -128,36 +136,88 @@ TEST_CASE("Payment reversal", "[tx][payment_reversal]")
 		SECTION("Does not exists")
 		{
 			auto randomAccount = SecretKey::random();
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, randomAccount, usd, paymentAmount, commissionAmount, PAYMENT_REVERSAL_NO_PAYMENT_SENDER);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, randomAccount, usd, paymentAmount, commissionAmount, now, PAYMENT_REVERSAL_NO_PAYMENT_SENDER);
 		}
 		SECTION("Line is full")
 		{
 			applyChangeTrust(app, account, root, accountSeq++, "USD", paymentAmount - 1);
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, commissionAmount, PAYMENT_REVERSAL_PAYMENT_SENDER_LINE_FULL);
+			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, commissionAmount, now, PAYMENT_REVERSAL_PAYMENT_SENDER_LINE_FULL);
 		}
 	}
 	SECTION("Success")
 	{
 		// check prebalances
-		commissionLine = loadTrustLine(commissionAccount, usd, app, true);
-		REQUIRE(commissionLine->getBalance() == commissionAmount);
-		agentLine = loadTrustLine(agent, usd, app, true);
-		REQUIRE(agentLine->getBalance() == paymentAmount - commissionAmount);
-		applyChangeTrust(app, account, root, accountSeq++, "USD", INT64_MAX);
-		auto accountLine = loadTrustLine(account, usd, app, true);
-		REQUIRE(accountLine->getBalance() == 0);
-		// apply reversal
-		applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, commissionAmount);
-		// check postbalances
-		commissionLine = loadTrustLine(commissionAccount, usd, app, true);
-		REQUIRE(commissionLine->getBalance() == 0);
-		agentLine = loadTrustLine(agent, usd, app, true);
-		REQUIRE(agentLine->getBalance() == 0);
-		accountLine = loadTrustLine(account, usd, app, true);
-		REQUIRE(accountLine->getBalance() == paymentAmount);
-		SECTION("Already reversed")
+		auto uah = makeAsset(root, "UAH");
+		applyManageAssetOp(app, root, rootSeq++, sk, uah, false, false);
+		fee.type(OperationFeeType::opFEE_CHARGED);
+		fee.fee().amountToCharge = commissionAmount;
+		fee.fee().asset = uah;
+		// init account
+		applyCreditPaymentTx(app, root, account, uah, rootSeq++, paymentAmount, &sk);
+		// make payment to be reversed
+		closeLedgerOn(app, app.getLedgerManager().getLastClosedLedgerNum() + 1, 20, 1, 2017);
+		time_t performedAt = app.getLedgerManager().getCloseTime();
+		applyCreditPaymentTx(app, account, agent, uah, accountSeq++, paymentAmount, nullptr, &fee);
+		// check stats
+		auto accountAgent = StatisticsFrame::loadStatistics(account.getPublicKey(), uah, ACCOUNT_SETTLEMENT_AGENT, app.getDatabase())->getStatistics();
+		REQUIRE(accountAgent.dailyOutcome == paymentAmount);
+		REQUIRE(accountAgent.monthlyOutcome == paymentAmount);
+		REQUIRE(accountAgent.annualOutcome == paymentAmount);
+		REQUIRE(loadTrustLine(account, uah, app)->getBalance() == 0);
+		auto agetAccount = StatisticsFrame::loadStatistics(agent.getPublicKey(), uah, ACCOUNT_REGISTERED_USER, app.getDatabase())->getStatistics();
+		REQUIRE(agetAccount.dailyIncome == paymentAmount - commissionAmount);
+		REQUIRE(agetAccount.monthlyIncome == paymentAmount - commissionAmount);
+		REQUIRE(agetAccount.annualIncome == paymentAmount - commissionAmount);
+		REQUIRE(loadTrustLine(agent, uah, app)->getBalance() == paymentAmount - commissionAmount);
+		auto comAccount = StatisticsFrame::loadStatistics(commissionAccount.getPublicKey(), uah, ACCOUNT_REGISTERED_USER, app.getDatabase())->getStatistics();
+		REQUIRE(comAccount.dailyIncome == commissionAmount);
+		REQUIRE(comAccount.monthlyIncome == commissionAmount);
+		REQUIRE(comAccount.annualIncome == commissionAmount);
+		REQUIRE(loadTrustLine(commissionAccount, uah, app)->getBalance() == commissionAmount);
+		SECTION("Reversed with full stats")
 		{
-			applyPaymentReversalOp(app, agent, agentSeq++, paymentID, account, usd, paymentAmount, commissionAmount, PAYMENT_REVERSAL_ALREADY_REVERSED);
+			applyPaymentReversalOp(app, agent, agentSeq++, 221, account, uah, paymentAmount, commissionAmount, performedAt);
+			// check stats
+			accountAgent = StatisticsFrame::loadStatistics(account.getPublicKey(), uah, ACCOUNT_SETTLEMENT_AGENT, app.getDatabase())->getStatistics();
+			REQUIRE(accountAgent.dailyOutcome == 0);
+			REQUIRE(accountAgent.monthlyOutcome == 0);
+			REQUIRE(accountAgent.annualOutcome == 0);
+			REQUIRE(loadTrustLine(account, uah, app)->getBalance() == paymentAmount);
+			agetAccount = StatisticsFrame::loadStatistics(agent.getPublicKey(), uah, ACCOUNT_REGISTERED_USER, app.getDatabase())->getStatistics();
+			REQUIRE(agetAccount.dailyIncome == 0);
+			REQUIRE(agetAccount.monthlyIncome == 0);
+			REQUIRE(agetAccount.annualIncome == 0);
+			REQUIRE(loadTrustLine(agent, uah, app)->getBalance() == 0);
+			comAccount = StatisticsFrame::loadStatistics(commissionAccount.getPublicKey(), uah, ACCOUNT_REGISTERED_USER, app.getDatabase())->getStatistics();
+			REQUIRE(comAccount.dailyIncome == 0);
+			REQUIRE(comAccount.monthlyIncome == 0);
+			REQUIRE(comAccount.annualIncome == 0);
+			REQUIRE(loadTrustLine(commissionAccount, uah, app)->getBalance() == 0);
+		}
+		SECTION("Reversed on next day")
+		{
+			closeLedgerOn(app, app.getLedgerManager().getLastClosedLedgerNum() + 1, 22, 1, 2017);
+			time_t now = app.getLedgerManager().getCloseTime();
+			auto localPerformedAt = localtime(&performedAt);
+			auto localNow = localtime(&now);
+			REQUIRE(localPerformedAt->tm_yday != localNow->tm_mday);
+			applyPaymentReversalOp(app, agent, agentSeq++, 221, account, uah, paymentAmount, commissionAmount, performedAt);
+			// check stats
+			accountAgent = StatisticsFrame::loadStatistics(account.getPublicKey(), uah, ACCOUNT_SETTLEMENT_AGENT, app.getDatabase())->getStatistics();
+			REQUIRE(accountAgent.dailyOutcome == 0);
+			REQUIRE(accountAgent.monthlyOutcome == 0);
+			REQUIRE(accountAgent.annualOutcome == 0);
+			REQUIRE(loadTrustLine(account, uah, app)->getBalance() == paymentAmount);
+			agetAccount = StatisticsFrame::loadStatistics(agent.getPublicKey(), uah, ACCOUNT_REGISTERED_USER, app.getDatabase())->getStatistics();
+			REQUIRE(agetAccount.dailyIncome == 0);
+			REQUIRE(agetAccount.monthlyIncome == 0);
+			REQUIRE(agetAccount.annualIncome == 0);
+			REQUIRE(loadTrustLine(agent, uah, app)->getBalance() == 0);
+			comAccount = StatisticsFrame::loadStatistics(commissionAccount.getPublicKey(), uah, ACCOUNT_REGISTERED_USER, app.getDatabase())->getStatistics();
+			REQUIRE(comAccount.dailyIncome == 0);
+			REQUIRE(comAccount.monthlyIncome == 0);
+			REQUIRE(comAccount.annualIncome == 0);
+			REQUIRE(loadTrustLine(commissionAccount, uah, app)->getBalance() == 0);
 		}
 	}
 }

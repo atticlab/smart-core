@@ -259,6 +259,7 @@ struct PaymentReversalOp
     int64 amount;            // amount they end up with
 	int64 commissionAmount;   // amount of commission to be returned
 	int64 paymentID;         // id of payment to be reversed
+	int64 performedAt;       // time when payment was performed
 };
 
 /* Refund
@@ -472,7 +473,13 @@ enum CreateAccountResultCode
     CREATE_ACCOUNT_WRONG_TYPE = -6,
     CREATE_ACCOUNT_LINE_FULL = -7,
     CREATE_ACCOUNT_NO_ISSUER = -8,
-	CREATE_ACCOUNT_ASSET_NOT_ALLOWED = -9
+	CREATE_ACCOUNT_ASSET_NOT_ALLOWED = -9,
+	CREATE_ACCOUNT_SRC_ASSET_LIMITS_EXCEEDED = -10, // source account exceeded asset limits
+	CREATE_ACCOUNT_DEST_ASSET_LIMITS_EXCEEDED = -11, // dest account exceeded asset limits
+	CREATE_ACCOUNT_COMMISSION_ASSET_LIMITS_EXCEEDED = -12,
+	CREATE_ACCOUNT_SRC_STATS_OVERFLOW = -13,
+	CREATE_ACCOUNT_DEST_STATS_OVERFLOW = -14,
+	CREATE_ACCOUNT_COM_STATS_OVERFLOW = -15
 };
 
 union CreateAccountResult switch (CreateAccountResultCode code)
@@ -500,7 +507,14 @@ enum PaymentResultCode
     PAYMENT_NOT_AUTHORIZED = -7, // destination not authorized to hold asset
     PAYMENT_LINE_FULL = -8,      // destination would go above their limit
     PAYMENT_NO_ISSUER = -9,       // missing issuer on asset
-	PAYMENT_ASSET_NOT_ALLOWED = -10  // asset is not allowed
+	PAYMENT_ASSET_NOT_ALLOWED = -10,  // asset is not allowed
+	PAYMENT_SRC_ASSET_LIMITS_EXCEEDED = -11, // source account exceeded asset limits
+	PAYMENT_DEST_ASSET_LIMITS_EXCEEDED = -12, // dest account exceeded asset limits
+	PAYMENT_COMMISSION_ASSET_LIMITS_EXCEEDED = -13,
+	PAYMENT_SRC_STATS_OVERFLOW = -14,
+	PAYMENT_DEST_STATS_OVERFLOW = -15,
+	PAYMENT_COM_STATS_OVERFLOW = -16
+
 };
 
 union PaymentResult switch (PaymentResultCode code)
@@ -531,7 +545,13 @@ enum PathPaymentResultCode
     PATH_PAYMENT_TOO_FEW_OFFERS = -10,    // not enough offers to satisfy path
     PATH_PAYMENT_OFFER_CROSS_SELF = -11,  // would cross one of its own offers
     PATH_PAYMENT_OVER_SENDMAX = -12,      // could not satisfy sendmax
-	PATH_PAYMENT_ASSET_NOT_ALLOWED = -13  // asset is not allowed
+	PATH_PAYMENT_ASSET_NOT_ALLOWED = -13,  // asset is not allowed
+	PATH_PAYMENT_SRC_ASSET_LIMITS_EXCEEDED = -14, // source account exceeded asset limits
+	PATH_PAYMENT_DEST_ASSET_LIMITS_EXCEEDED = -15, // dest account exceeded asset limits
+	PATH_PAYMENT_COMMISSION_ASSET_LIMITS_EXCEEDED = -16,
+	PATH_PAYMENT_SRC_STATS_OVERFLOW = -17,
+	PATH_PAYMENT_DEST_STATS_OVERFLOW = -18,
+	PATH_PAYMENT_COM_STATS_OVERFLOW = -19
 };
 
 struct SimplePaymentResult
@@ -650,7 +670,8 @@ enum ChangeTrustResultCode
     CHANGE_TRUST_INVALID_LIMIT = -3,    // cannot drop limit below balance
                                         // cannot create with a limit of 0
     CHANGE_TRUST_LOW_RESERVE = -4,      // not enough funds to create a new trust line
-	CHANGE_TRUST_ASSET_NOT_ALLOWED = -5 // asset is not allowed
+	CHANGE_TRUST_ASSET_NOT_ALLOWED = -5, // asset is not allowed
+	CHANGE_TRUST_NOT_AUTHORIZED = -6     // account not authorized to use asset
 };
 
 union ChangeTrustResult switch (ChangeTrustResultCode code)
@@ -796,7 +817,13 @@ enum PaymentReversalResultCode
 	PAYMENT_REVERSAL_MALFORMED = -17,                    // reversal payment is malformed in some way
 	PAYMENT_REVERSAL_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
 	PAYMENT_REVERSAL_ALREADY_REVERSED = -19,             // payment already have been reversed
-	PAYMENT_REVERSAL_ASSET_NOT_ALLOWED = -20             // asset is not allowed
+	PAYMENT_REVERSAL_ASSET_NOT_ALLOWED = -20,             // asset is not allowed
+	PAYMENT_REVERSAL_SRC_ASSET_LIMITS_EXCEEDED = -21, // source account exceeded asset limits
+	PAYMENT_REVERSAL_DEST_ASSET_LIMITS_EXCEEDED = -22, // dest account exceeded asset limits
+	PAYMENT_REVERSAL_COMMISSION_ASSET_LIMITS_EXCEEDED = -23,
+	PAYMENT_REVERSAL_SRC_STATS_OVERFLOW = -24,
+	PAYMENT_REVERSAL_DEST_STATS_OVERFLOW = -25,
+	PAYMENT_REVERSAL_COM_STATS_OVERFLOW = -26
 };
 
 union PaymentReversalResult switch (PaymentReversalResultCode code)
@@ -831,7 +858,13 @@ enum RefundResultCode
     REFUND_MALFORMED = -17,                    // reversal payment is malformed in some way
     REFUND_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
     REFUND_ALREADY_REFUNDED = -19,             // payment already have been refunded
-	REFUND_ASSET_NOT_ALLOWED = -20                   // asset is not allowed
+	REFUND_ASSET_NOT_ALLOWED = -20,                   // asset is not allowed
+	REFUND_SRC_ASSET_LIMITS_EXCEEDED = -21, // source account exceeded asset limits
+	REFUND_DEST_ASSET_LIMITS_EXCEEDED = -22, // dest account exceeded asset limits
+	REFUND_COMMISSION_ASSET_LIMITS_EXCEEDED = -23,
+	REFUND_SRC_STATS_OVERFLOW = -24,
+	REFUND_DEST_STATS_OVERFLOW = -25,
+	REFUND_COM_STATS_OVERFLOW = -26
 };
 
 union RefundResult switch (RefundResultCode code)

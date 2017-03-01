@@ -200,11 +200,11 @@ TransactionFramePtr createPaymentReversalOp(Hash const& networkID, SecretKey& so
 	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount);
 
 void applyPaymentReversalOp(Application& app, SecretKey& source, SequenceNumber seq,
-	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount,
+	int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 commissionAmount, int64 performedAt,
 	PaymentReversalResultCode targetResult = PAYMENT_REVERSAL_SUCCESS);
 
 TransactionFramePtr createPaymentRefundOp(Hash const& networkID, SecretKey& source, SequenceNumber seq,
-    int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 originalAmount);
+    int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 originalAmount, int64 performedAt);
     
 void applyPaymentRefundOp(Application& app, SecretKey& source, SequenceNumber seq,
     int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 originalAmount,

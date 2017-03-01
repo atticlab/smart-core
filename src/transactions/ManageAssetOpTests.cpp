@@ -47,12 +47,19 @@ TEST_CASE("manage asset operation", "[tx][manage_asset]")
 	SECTION("EUAH in genesis ledger")
 	{
 		Asset euah = makeAsset(root, "EUAH");
-		AssetEntry entry;
-		entry.asset = euah;
-		entry.isAnonymous = true;
+		AssetEntry euahEntry;
+		euahEntry.asset = euah;
+		euahEntry.isAnonymous = true;
+		euahEntry.maxBalance = LedgerManager::MAX_EUAH_BALANCE;
+		euahEntry.maxDailyIn = -1;
+		euahEntry.maxDailyOut = LedgerManager::MAX_EUAH_DAILY_OUT;
+		euahEntry.maxMonthlyIn = -1;
+		euahEntry.maxMonthlyOut = LedgerManager::MAX_EUAH_MONTHLY_OUT;
+		euahEntry.maxAnnualIn = LedgerManager::MAX_EUAH_ANNUAL_IN;
+		euahEntry.maxAnnualOut = LedgerManager::MAX_EUAH_ANNUAL_OUT;
 		AssetFrame::pointer stored = AssetFrame::loadAsset(euah, app.getDatabase());
 		REQUIRE(stored);
-		REQUIRE(stored->getAsset() == entry);
+		REQUIRE(stored->getAsset() == euahEntry);
 	}
 	SECTION("Only admin signer of bank can manage asset")
 	{
@@ -87,6 +94,17 @@ TEST_CASE("manage asset operation", "[tx][manage_asset]")
 		applyManageAssetOp(app, root, rootSeq++, admin, asset, false, false);
 		// update
 		applyManageAssetOp(app, root, rootSeq++, admin, asset, true, false);
+		// check default restrictions
+		AssetFrame::pointer stored = AssetFrame::loadAsset(asset, app.getDatabase());
+		REQUIRE(stored);
+		REQUIRE(stored->getAsset().isAnonymous);
+		REQUIRE(stored->getAsset().maxBalance == -1);
+		REQUIRE(stored->getAsset().maxDailyIn == -1);
+		REQUIRE(stored->getAsset().maxDailyOut == -1);
+		REQUIRE(stored->getAsset().maxMonthlyIn == -1);
+		REQUIRE(stored->getAsset().maxMonthlyOut == -1);
+		REQUIRE(stored->getAsset().maxAnnualIn == -1);
+		REQUIRE(stored->getAsset().maxAnnualOut == -1);
 		// delete
 		applyManageAssetOp(app, root, rootSeq++, admin, asset, true, true);
 	}

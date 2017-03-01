@@ -45,8 +45,6 @@ class OperationFrame
     static std::shared_ptr<OperationFrame>
     makeHelper(Operation const& op, OperationResult& res, OperationFee* fee,
                TransactionFrame& parentTx);
-	static TrustFrame::pointer
-		createTrustLine(Application& app, LedgerManager& ledgerManager, LedgerDelta& delta, TransactionFrame& parentTx, AccountFrame::pointer account, Asset const& asset);
 
     OperationFrame(Operation const& op, OperationResult& res, OperationFee* fee,
                    TransactionFrame& parentTx);

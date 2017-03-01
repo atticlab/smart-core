@@ -109,6 +109,25 @@ class AccountFrame : public EntryFrame
         return mAccountEntry;
     }
 
+	bool isAnonymous() const
+	{
+		return mAccountEntry.accountType == AccountType::ACCOUNT_ANONYMOUS_USER;
+	}
+
+	bool isAgent() const
+	{
+		switch (mAccountEntry.accountType)
+		{
+		case ACCOUNT_DISTRIBUTION_AGENT:
+		case ACCOUNT_SETTLEMENT_AGENT:
+		case ACCOUNT_EXCHANGE_AGENT:
+		case ACCOUNT_GENERAL_AGENT:
+			return true;
+		}
+
+		return false;
+	}
+
     // Instance-based overrides of EntryFrame.
     void storeDelete(LedgerDelta& delta, Database& db) const override;
     void storeChange(LedgerDelta& delta, Database& db) override;

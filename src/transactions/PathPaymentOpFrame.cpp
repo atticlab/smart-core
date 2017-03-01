@@ -164,16 +164,7 @@ PathPaymentOpFrame::doApply(Application& app,
                     mPathPayment.path.end());
 
     
-    AccountFrame::pointer destination;
-	AccountFrame::pointer commissionDestination;
-
-	commissionDestination = AccountFrame::loadAccount(delta, app.getConfig().BANK_COMMISSION_KEY, db);
-	assert(!!commissionDestination);
-
-
-    destination =
-    AccountFrame::loadAccount(delta, mPathPayment.destination, db);
-    
+    AccountFrame::pointer destination = AccountFrame::loadAccount(delta, mPathPayment.destination, db);
     if (!destination)
     {
 		// asset must exists as we've check it in isAssetAllowed
@@ -190,33 +181,6 @@ PathPaymentOpFrame::doApply(Application& app,
 		assert(!!destination);        
     }
 
-	TrustFrame::pointer destLine;
-
-	auto tlI = TrustFrame::loadTrustLineIssuer(mPathPayment.destination,
-		curB, db, delta);
-	if (!tlI.second)
-	{
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "no-issuer" },
-			"operation").Mark();
-		innerResult().code(PATH_PAYMENT_NO_ISSUER);
-		innerResult().noIssuer() = curB;
-		return false;
-	}
-	destLine = tlI.first;
-
-	if (!destLine)
-	{
-		destLine = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, destination, mPathPayment.destAsset);
-	}
-
-	if (!destLine->isAuthorized())
-	{
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "not-authorized" },
-			"operation").Mark();
-		innerResult().code(PATH_PAYMENT_NOT_AUTHORIZED);
-		return false;
-	}
-
 	if (destination->getAccount().accountType == ACCOUNT_SCRATCH_CARD && !mIsCreate)
 	{
 		app.getMetrics().NewMeter({ "op-path-payment", "failure", "destination-scratch-card" },
@@ -225,33 +189,79 @@ PathPaymentOpFrame::doApply(Application& app,
 		return false;
 	}
 
-	BalanceManager balanceManager(app, db, delta, ledgerManager);
+	BalanceManager balanceManager(app, db, delta, ledgerManager, mParentTx);
 	auto now = ledgerManager.getCloseTime();
-	if (balanceManager.add(destination, destLine, curBReceived, true, AccountType(mSourceAccount->getAccount().accountType), now, now) != BalanceManager::SUCCESS)
+	auto destinationResult = balanceManager.add(destination, curB, curBReceived, true, AccountType(mSourceAccount->getAccount().accountType), now);
+	switch (destinationResult)
 	{
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "line-full" },
-			"operation").Mark();
+	case BalanceManager::ASSET_NOT_ALLOWED:
+		app.getMetrics().NewMeter({ "op-path-payment", "invalid", "malformed-currencies" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_ASSET_NOT_ALLOWED);
+		return false;
+	case BalanceManager::NOT_AUTHORIZED:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "dest-not-authorized" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_NOT_AUTHORIZED);
+		return false;
+	case BalanceManager::NO_TRUST_LINE:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "dest-no-trust" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_NO_TRUST);
+		return false;
+	case BalanceManager::LINE_FULL:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "line-full" }, "operation").Mark();
 		innerResult().code(PATH_PAYMENT_LINE_FULL);
 		return false;
-	}
-
-	TrustFrame::pointer commissionDestLine = getCommissionDest(ledgerManager, delta, db, commissionDestination, curB);
-	if (!commissionDestLine) {
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "comission-dest-low-reserve" },
-			"operation").Mark();
-		innerResult().code(PATH_PAYMENT_NO_DESTINATION);
+	case BalanceManager::UNDERFUNDED:
+		throw std::runtime_error("Unexpected error for destination UNDERFUNDED!");
+	case BalanceManager::ASSET_LIMITS_EXCEEDED:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "dest-asset-limits-exceeded" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_DEST_ASSET_LIMITS_EXCEEDED);
 		return false;
+	case BalanceManager::STATS_OVERFLOW:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "dest-stats-overflow" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_DEST_STATS_OVERFLOW);
+		return false;
+	case BalanceManager::SUCCESS:
+		break;
+	default:
+		throw std::runtime_error("Unexpected response from balance manager for dest!");
 	}
 
-	if (balanceManager.add(commissionDestination, commissionDestLine, curBCommission, true, AccountType(mSourceAccount->getAccount().accountType), now, now) != BalanceManager::SUCCESS) {
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "commission-line-full" },
-			"operation").Mark();
+	AccountFrame::pointer commissionDestination = AccountFrame::loadAccount(delta, app.getConfig().BANK_COMMISSION_KEY, db);
+	assert(!!commissionDestination);
+	auto commissionResult = balanceManager.add(commissionDestination, curB, curBCommission, true, AccountType(mSourceAccount->getAccount().accountType), now);
+	switch (commissionResult)
+	{
+	case BalanceManager::ASSET_NOT_ALLOWED:
+		app.getMetrics().NewMeter({ "op-path-payment", "invalid", "malformed-currencies" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_ASSET_NOT_ALLOWED);
+		return false;
+	case BalanceManager::NOT_AUTHORIZED:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "commission-not-authorized" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_NOT_AUTHORIZED);
+		return false;
+	case BalanceManager::NO_TRUST_LINE:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "dest-no-trust" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_NO_TRUST);
+		return false;
+	case BalanceManager::LINE_FULL:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "line-full" }, "operation").Mark();
 		innerResult().code(PATH_PAYMENT_LINE_FULL);
 		return false;
+	case BalanceManager::UNDERFUNDED:
+		throw std::runtime_error("Unexpected error for commission UNDERFUNDED!");
+	case BalanceManager::ASSET_LIMITS_EXCEEDED:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "commission-asset-limits-exceeded" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_COMMISSION_ASSET_LIMITS_EXCEEDED);
+		return false;
+	case BalanceManager::STATS_OVERFLOW:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "commission-stats-overflow" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_COM_STATS_OVERFLOW);
+		return false;
+	case BalanceManager::SUCCESS:
+		break;
+	default:
+		throw std::runtime_error("Unexpected response from balance manager for commission!");
 	}
-
-	commissionDestLine->storeChange(delta, db);
-	destLine->storeChange(delta, db);
 
     innerResult().success().last =
         SimplePaymentResult(mPathPayment.destination, curB, curBReceived);
@@ -343,58 +353,40 @@ PathPaymentOpFrame::doApply(Application& app,
         return false;
     }
 
-	TrustFrame::pointer sourceLineFrame;
-	tlI =
-		TrustFrame::loadTrustLineIssuer(getSourceID(), curB, db, delta);
-	if (!tlI.second)
+	auto sourceResult = balanceManager.add(mSourceAccount, curB, curBSent, false, AccountType(destination->getAccount().accountType), now);
+	switch (sourceResult)
 	{
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "no-issuer" },
-			"operation").Mark();
-		innerResult().code(PATH_PAYMENT_NO_ISSUER);
-		innerResult().noIssuer() = curB;
+	case BalanceManager::ASSET_NOT_ALLOWED:
+		app.getMetrics().NewMeter({ "op-path-payment", "invalid", "malformed-currencies" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_ASSET_NOT_ALLOWED);
 		return false;
-	}
-	bool sourceLineExists = !!tlI.first;
-	if (!sourceLineExists)
-	{
-		if (getSourceID() == getIssuer(curB))
-		{
-			auto line = OperationFrame::createTrustLine(app, ledgerManager, delta, mParentTx, mSourceAccount, curB);
-			sourceLineExists = !!line;
-			sourceLineFrame = line;
-		}
-	}
-	else
-	{
-		sourceLineFrame = tlI.first;
-	}
-
-	if (!sourceLineFrame)
-	{
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "src-no-trust" },
-			"operation").Mark();
-		innerResult().code(PATH_PAYMENT_SRC_NO_TRUST);
-		return false;
-	}
-
-	if (!sourceLineFrame->isAuthorized())
-	{
-		app.getMetrics().NewMeter(
-		{ "op-path-payment", "failure", "src-not-authorized" },
-			"operation").Mark();
+	case BalanceManager::NOT_AUTHORIZED:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "src-not-authorized" }, "operation").Mark();
 		innerResult().code(PATH_PAYMENT_SRC_NOT_AUTHORIZED);
 		return false;
-	}
-
-	if (balanceManager.add(mSourceAccount, sourceLineFrame, curBSent, false, AccountType(destination->getAccount().accountType), now, now) != BalanceManager::SUCCESS)
-	{
-		app.getMetrics().NewMeter({ "op-path-payment", "failure", "underfunded" },
-			"operation").Mark();
+	case BalanceManager::NO_TRUST_LINE:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "dest-no-trust" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_SRC_NO_TRUST);
+		return false;
+	case BalanceManager::LINE_FULL:
+		throw std::runtime_error("Unexpected error for source LINE_FULL!");
+	case BalanceManager::UNDERFUNDED:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "source-underfunded" }, "operation").Mark();
 		innerResult().code(PATH_PAYMENT_UNDERFUNDED);
 		return false;
+	case BalanceManager::ASSET_LIMITS_EXCEEDED:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "src-asset-limits-exceeded" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_SRC_ASSET_LIMITS_EXCEEDED);
+		return false;
+	case BalanceManager::STATS_OVERFLOW:
+		app.getMetrics().NewMeter({ "op-path-payment", "failure", "src-stats-overflow" }, "operation").Mark();
+		innerResult().code(PATH_PAYMENT_SRC_STATS_OVERFLOW);
+		return false;
+	case BalanceManager::SUCCESS:
+		break;
+	default:
+		throw std::runtime_error("Unexpected response from balance manager for src!");
 	}
-
-	sourceLineFrame->storeChange(delta, db);
 
     app.getMetrics().NewMeter({"op-path-payment", "success", "apply"}, "operation")
         .Mark();
@@ -433,6 +425,15 @@ PathPaymentOpFrame::doCheckValid(Application& app)
         innerResult().code(PATH_PAYMENT_MALFORMED);
         return false;
     }
+
+	if (!mPathPayment.path.empty() || !(mPathPayment.sendAsset == mPathPayment.destAsset)) 
+	{
+		app.getMetrics().NewMeter({ "op-path-payment", "invalid", "path-not-allowed" },
+			"operation").Mark();
+		innerResult().code(PATH_PAYMENT_MALFORMED);
+		return false;
+	}
+
     return true;
 }
 }

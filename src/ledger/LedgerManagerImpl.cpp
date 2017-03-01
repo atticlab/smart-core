@@ -172,8 +172,16 @@ LedgerManagerImpl::startNewLedger()
 	euah.alphaNum4().issuer = masterAccount.getAccount().accountID;
 	strToAssetCode(euah.alphaNum4().assetCode, "EUAH");
 	AssetFrame euahFrame;
-	euahFrame.getAsset().asset = euah;
-	euahFrame.getAsset().isAnonymous = true;
+	AssetEntry& euahEntry = euahFrame.getAsset();
+	euahEntry.asset = euah;
+	euahEntry.isAnonymous = true;
+	euahEntry.maxBalance = MAX_EUAH_BALANCE;
+	euahEntry.maxDailyIn = -1;
+	euahEntry.maxDailyOut = MAX_EUAH_DAILY_OUT;
+	euahEntry.maxMonthlyIn = -1;
+	euahEntry.maxMonthlyOut = MAX_EUAH_MONTHLY_OUT;
+	euahEntry.maxAnnualIn = MAX_EUAH_ANNUAL_IN;
+	euahEntry.maxAnnualOut = MAX_EUAH_ANNUAL_OUT;
 
 
     AccountFrame commissionAccount(mApp.getConfig().BANK_COMMISSION_KEY);

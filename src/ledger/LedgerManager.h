@@ -54,6 +54,13 @@ class LedgerManager
         LM_NUM_STATE
     };
 
+	static const int64 ONE = 10000000;
+	static const int64 MAX_EUAH_BALANCE = 14000 * ONE;
+	static const int64 MAX_EUAH_DAILY_OUT = 500 * ONE;
+	static const int64 MAX_EUAH_MONTHLY_OUT = 4000 * ONE;
+	static const int64 MAX_EUAH_ANNUAL_IN = -1;
+	static const int64 MAX_EUAH_ANNUAL_OUT = 62000 * ONE;
+
     virtual void setState(State s) = 0;
     virtual State getState() const = 0;
     virtual std::string getStateHuman() const = 0;

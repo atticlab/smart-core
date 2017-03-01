@@ -27,13 +27,23 @@ ChangeTrustOpFrame::doApply(Application& app,
 {
     Database& db = ledgerManager.getDatabase();
 	AssetsValidator assetsValidator(app, db);
-	if (!assetsValidator.isAssetAllowed(mChangeTrust.line))
+	auto asset = assetsValidator.getAllowedAsset(mChangeTrust.line);
+	if (!asset)
 	{
 		app.getMetrics().NewMeter({ "op-change-trust", "failure", "asset-not-allowed" },
 			"operation").Mark();
 		innerResult().code(CHANGE_TRUST_ASSET_NOT_ALLOWED);
 		return false;
 	}
+
+	if (!asset->getAsset().isAnonymous && mSourceAccount->isAnonymous())
+	{
+		app.getMetrics().NewMeter({ "op-change-trust", "failure", "not-authorized" },
+			"operation").Mark();
+		innerResult().code(CHANGE_TRUST_NOT_AUTHORIZED);
+		return false;
+	}
+
 
     auto tlI = TrustFrame::loadTrustLineIssuer(getSourceID(), mChangeTrust.line,
                                                db, delta);

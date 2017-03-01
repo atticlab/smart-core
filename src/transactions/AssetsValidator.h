@@ -5,6 +5,7 @@
 // of this distribution or at http://www.apache.org/licenses/LICENSE-2.0
 
 #include "overlay/StellarXDR.h"
+#include "ledger/AssetFrame.h"
 
 namespace medida
 {
@@ -29,5 +30,7 @@ namespace stellar
 		bool isAssetValid(Asset const& asset) const;
 		// returns true if the asset value is valid and asset is allowed (stored in db)
 		bool isAssetAllowed(Asset const& asset) const;
+		// return AssetFrame if asset is allowed
+		AssetFrame::pointer getAllowedAsset(Asset const& asset, LedgerDelta* delta = nullptr) const;
 	};
 }

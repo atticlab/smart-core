@@ -13,6 +13,7 @@
 #include "database/Database.h"
 #include "ledger/LedgerManager.h"
 #include "ledger/LedgerDelta.h"
+#include "ledger/AssetFrame.h"
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
 #include "ledger/StatisticsFrame.h"
@@ -56,7 +57,7 @@ TEST_CASE("payment", "[tx][payment]")
     applySetOptions(app, root, rootSeq++, nullptr, nullptr, nullptr, nullptr, &signer, nullptr);
     
     // create an account
-    applyCreateAccountTx(app, root, a1, rootSeq++, 0, &sk);
+    applyCreateAccountTx(app, root, a1, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
 
     SequenceNumber a1Seq = getAccountSeqNum(a1, app) + 1;
 
@@ -90,10 +91,61 @@ TEST_CASE("payment", "[tx][payment]")
     LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
                       app.getDatabase());
 
+	SECTION("EUAH limits")
+	{
+		auto anonUser = SecretKey::random();
+		applyCreateAccountTx(app, root, anonUser, rootSeq++, 0, &sk);
+		SequenceNumber anonUserSeq = getAccountSeqNum(anonUser, app) + 1;
+		auto anonReceiver = SecretKey::random();
+		applyCreateAccountTx(app, root, anonReceiver, rootSeq++, 0, &sk);
+		auto user = SecretKey::random();
+		applyCreateAccountTx(app, root, user, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
+		auto euah = makeAsset(root, "EUAH");
+		auto storedEUAH = AssetFrame::loadAsset(euah, app.getDatabase());
+		int64 maxBalance = storedEUAH->getAsset().maxBalance;
+		int64 maxDailyOut = storedEUAH->getAsset().maxDailyOut;
+		REQUIRE(maxBalance > -1);
+		REQUIRE(maxBalance > maxDailyOut);
+		applyCreditPaymentTx(app, root, anonUser, euah, rootSeq++, storedEUAH->getAsset().maxBalance, &sk);
+		SECTION("account->set agent")
+		{
+			auto settlementAgent = SecretKey::random();
+			applyCreateAccountTx(app, root, settlementAgent, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, ACCOUNT_SETTLEMENT_AGENT);
+			auto settlemSeq = getAccountSeqNum(settlementAgent, app);
+			applyCreditPaymentTx(app, anonUser, settlementAgent, euah, anonUserSeq++, storedEUAH->getAsset().maxDailyOut+1, nullptr, nullptr, PaymentResultCode::PAYMENT_SRC_ASSET_LIMITS_EXCEEDED);
+		}
+		SECTION("Balance limit exceeded")
+		{
+			applyCreditPaymentTx(app, root, anonUser, euah, rootSeq++, 1, &sk, nullptr, PaymentResultCode::PAYMENT_DEST_ASSET_LIMITS_EXCEEDED);
+		}
+		SECTION("Max daily out exceeded")
+		{
+			closeLedgerOn(app, app.getLedgerManager().getLastClosedLedgerNum() + 1, 20, 1, 2017);
+			time_t performedAt = app.getLedgerManager().getCloseTime();
+			auto localPerformedAt = *localtime(&performedAt);
+			applyCreditPaymentTx(app, anonUser, anonReceiver, euah, anonUserSeq++, maxDailyOut / 2);
+			applyCreditPaymentTx(app, anonUser, user, euah, anonUserSeq++, maxDailyOut / 2);
+			applyCreditPaymentTx(app, anonUser, anonReceiver, euah, anonUserSeq++, 1, nullptr, nullptr, PaymentResultCode::PAYMENT_SRC_ASSET_LIMITS_EXCEEDED);
+			closeLedgerOn(app, app.getLedgerManager().getLastClosedLedgerNum() + 1, 28, 1, 2017);
+			time_t now = app.getLedgerManager().getCloseTime();
+			auto localNow = *localtime(&now);
+			REQUIRE(localPerformedAt.tm_yday != localNow.tm_yday);
+			applyCreditPaymentTx(app, anonUser, anonReceiver, euah, anonUserSeq++, 1, nullptr, nullptr);
+			auto anonToAnonReceiver = StatisticsFrame::loadStatistics(anonUser.getPublicKey(), euah, AccountType::ACCOUNT_ANONYMOUS_USER, app.getDatabase())->getStatistics();
+			REQUIRE(anonToAnonReceiver.dailyOutcome == 1);
+			REQUIRE(anonToAnonReceiver.monthlyOutcome == (maxDailyOut / 2) + 1);
+			REQUIRE(anonToAnonReceiver.annualOutcome == (maxDailyOut / 2) + 1);
+		}
+	}
+	SECTION("Anonymous account can't receive nonanonymous asset")
+	{
+		auto anonUser = SecretKey::random();
+		applyCreateAccountTx(app, root, anonUser, rootSeq++, 0, &sk);
+		applyCreditPaymentTx(app, root, anonUser, usdCur, rootSeq++, paymentAmount, &sk, nullptr, PAYMENT_NOT_AUTHORIZED);
+	}
 	SECTION("Can't create account on non anonymous account")
 	{
 		auto anonUser = getAccount("anonUser");
-		auto oldBalance = 0;
 		OperationFee fee;
 		fee.type(OperationFeeType::opFEE_CHARGED);
 		fee.fee().amountToCharge = paymentAmount / 2;
@@ -201,7 +253,7 @@ TEST_CASE("payment", "[tx][payment]")
 			applyCreditPaymentTx(app, a1, newAccount, invalidAsset, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_ASSET_NOT_ALLOWED);
 		}
 		// create an account
-		applyCreateAccountTx(app, root, b1, rootSeq++, 0, &sk);
+		applyCreateAccountTx(app, root, b1, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
 		applyChangeTrust(app, a1, root, a1Seq++, "IDR", INT64_MAX);
 		applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++, paymentAmount, &sk);
         
@@ -277,31 +329,41 @@ TEST_CASE("payment", "[tx][payment]")
 				auto invalidCur = makeAsset(distr, "USD");
 				applyCreateAccountTx(app, distr, account, distrSeq++, 100, nullptr, CREATE_ACCOUNT_ASSET_NOT_ALLOWED, ACCOUNT_SCRATCH_CARD, &invalidCur);
 			}
+			SECTION("Scratch card can't exceed limits")
+			{
+				auto euah = makeAsset(root, "EUAH");
+				auto storedEUAH = AssetFrame::loadAsset(euah, app.getDatabase());
+				int64 amount = storedEUAH->getAsset().maxBalance + 10;
+				applyCreditPaymentTx(app, root, distr, euah, rootSeq++, 200 + amount, &sk);
+				auto account = SecretKey::random();
+				applyCreateAccountTx(app, distr, account, distrSeq++, amount, nullptr, CREATE_ACCOUNT_DEST_ASSET_LIMITS_EXCEEDED, ACCOUNT_SCRATCH_CARD, &euah);
+			}
 			SECTION("Success")
 			{
-				int64 amount = 100000;
+				int64 amount = int64(150) * int64(10000000);
 				auto account = SecretKey::random();
-                applyChangeTrust(app, distr, root, distrSeq++, "USD", INT64_MAX);
-                applyCreditPaymentTx(app, root, distr, usdCur, rootSeq++, 200+amount, &sk);
-				applyCreateAccountTx(app, distr, account, distrSeq++, amount, nullptr, CREATE_ACCOUNT_SUCCESS, ACCOUNT_SCRATCH_CARD, &usdCur);
+                applyChangeTrust(app, distr, root, distrSeq++, "EUAH", INT64_MAX);
+				auto euah = makeAsset(root, "EUAH");
+                applyCreditPaymentTx(app, root, distr, euah, rootSeq++, 200+amount, &sk);
+				applyCreateAccountTx(app, distr, account, distrSeq++, amount, nullptr, CREATE_ACCOUNT_SUCCESS, ACCOUNT_SCRATCH_CARD, &euah);
 				auto loadedAccount = loadAccount(account, app);
 				REQUIRE(loadedAccount);
-				auto accountLine = loadTrustLine(account, usdCur, app, true);
+				auto accountLine = loadTrustLine(account, euah, app, true);
 				REQUIRE(accountLine);
 				REQUIRE(accountLine->getBalance() == amount);
 				SECTION("Can't send more to scratch card")
 				{
-					applyCreditPaymentTx(app, root, account, usdCur, rootSeq++, 100, &sk, nullptr, PAYMENT_NO_DESTINATION);
+					applyCreditPaymentTx(app, root, account, euah, rootSeq++, 100, &sk, nullptr, PAYMENT_NO_DESTINATION);
 				}
 				SECTION("Can spend, can't deposit")
 				{
 					auto accountSeq = getAccountSeqNum(account, app) + 1;
-					applyCreditPaymentTx(app, account, root, usdCur, accountSeq++, amount / 2);
-					accountLine = loadTrustLine(account, usdCur, app, true);
+					applyCreditPaymentTx(app, account, root, euah, accountSeq++, amount / 2);
+					accountLine = loadTrustLine(account, euah, app, true);
 					REQUIRE(accountLine);
 					REQUIRE(accountLine->getBalance() == amount / 2);
 					// can't deposit
-					applyCreditPaymentTx(app, root, account, usdCur, rootSeq++, 100, &sk, nullptr, PAYMENT_NO_DESTINATION);
+					applyCreditPaymentTx(app, root, account, euah, rootSeq++, 100, &sk, nullptr, PAYMENT_NO_DESTINATION);
 				}
 			}
 		}
@@ -334,11 +396,14 @@ TEST_CASE("payment", "[tx][payment]")
                         nullptr, nullptr, nullptr, nullptr);
 
         applyChangeTrust(app, a1, root, a1Seq++, "IDR", trustLineLimit);
+		SequenceNumber commSeq = getAccountSeqNum(commissionSeed, app) + 1;
+		applyChangeTrust(app, commissionSeed, root, commSeq++, "IDR", trustLineLimit);
 
         applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++,
                              trustLineStartingBalance, &sk, nullptr, PAYMENT_NOT_AUTHORIZED);
 
         applyAllowTrust(app, root, a1, rootSeq++, "IDR", true, &sk);
+		applyAllowTrust(app, root, commissionSeed, rootSeq++, "IDR", true, &sk);
 
         applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++,
                              trustLineStartingBalance, &sk);
@@ -362,256 +427,13 @@ TEST_CASE("payment", "[tx][payment]")
 	}
     SECTION("payment through path")
     {
-        SECTION("send EUR with path (not enough offers)")
-        {
-			applyChangeTrust(app, a1, root, a1Seq++, "EUR", trustLineLimit);
-            applyPathPaymentTx(app, root, a1, idrCur, morePayment * 10,
-                               eurCur, morePayment, rootSeq++, &sk, nullptr,
-                               PATH_PAYMENT_TOO_FEW_OFFERS);
-        }
-
-        // setup a1
-        applyChangeTrust(app, a1, root, a1Seq++, "USD", trustLineLimit);
-        applyChangeTrust(app, a1, root, a1Seq++, "IDR", trustLineLimit);
-
-        applyCreditPaymentTx(app, root, a1, usdCur, rootSeq++,
-                             trustLineStartingBalance, &sk);
-
-        // add a couple offers in the order book
-
-        OfferFrame::pointer offer;
-
-        const Price usdPriceOffer(2, 1);
-
-        applyCreateAccountTx(app, root, b1, rootSeq++, 0, &sk);
-        SequenceNumber b1Seq = getAccountSeqNum(b1, app) + 1;
-        applyChangeTrust(app, b1, root, b1Seq++, "USD", trustLineLimit);
-        applyChangeTrust(app, b1, root, b1Seq++, "IDR", trustLineLimit);
-
-        applyCreditPaymentTx(app, root, b1, idrCur, rootSeq++,
-                             trustLineStartingBalance, &sk);
-
-        uint64_t offerB1 =
-            applyCreateOffer(app, delta, 0, b1, idrCur, usdCur, usdPriceOffer,
-                             100 * assetMultiplier, b1Seq++);
-
-        // setup "c1"
-        SecretKey c1 = getAccount("C");
-
-        applyCreateAccountTx(app, root, c1, rootSeq++, 0, &sk);
-        SequenceNumber c1Seq = getAccountSeqNum(c1, app) + 1;
-
-        applyChangeTrust(app, c1, root, c1Seq++, "USD", trustLineLimit);
-        applyChangeTrust(app, c1, root, c1Seq++, "IDR", trustLineLimit);
-
-        applyCreditPaymentTx(app, root, c1, idrCur, rootSeq++,
-                             trustLineStartingBalance, &sk);
-
-        // offer is sell 100 IDR for 150 USD ; buy USD @ 1.5 = sell IRD @ 0.66
-        uint64_t offerC1 =
-            applyCreateOffer(app, delta, 0, c1, idrCur, usdCur, Price(3, 2),
-                             100 * assetMultiplier, c1Seq++);
-
-        // at this point:
-        // a1 holds (0, IDR) (trustLineStartingBalance, USD)
-        // b1 holds (trustLineStartingBalance, IDR) (0, USD)
-        // c1 holds (trustLineStartingBalance, IDR) (0, USD)
-        SECTION("send with path (over sendmax)")
-        {
-            // A1: try to send 100 IDR to B1
-            // using 149 USD
-
-            auto res = applyPathPaymentTx(
-                app, a1, b1, usdCur, 149 * assetMultiplier, idrCur,
-                100 * assetMultiplier, a1Seq++, nullptr, nullptr, PATH_PAYMENT_OVER_SENDMAX);
-        }
-
-        SECTION("send with path (success)")
-        {
-            // A1: try to send 125 IDR to B1 using USD
-            // should cost 150 (C's offer taken entirely) +
-            //  50 (1/4 of B's offer)=200 USD
-
-            auto res = applyPathPaymentTx(
-                app, a1, b1, usdCur, 250 * assetMultiplier, idrCur,
-                125 * assetMultiplier, a1Seq++, nullptr, nullptr, PATH_PAYMENT_SUCCESS);
-
-            auto const& multi = res.success();
-
-            REQUIRE(multi.offers.size() == 2);
-
-            TrustFrame::pointer line;
-
-            // C1
-            // offer was taken
-            REQUIRE(multi.offers[0].offerID == offerC1);
-            REQUIRE(!loadOffer(c1, offerC1, app, false));
-            line = loadTrustLine(c1, idrCur, app);
-            checkAmounts(line->getBalance(),
-                         trustLineStartingBalance - 100 * assetMultiplier);
-            line = loadTrustLine(c1, usdCur, app);
-            checkAmounts(line->getBalance(), 150 * assetMultiplier);
-
-            // B1
-            auto const& b1Res = multi.offers[1];
-            REQUIRE(b1Res.offerID == offerB1);
-            offer = loadOffer(b1, offerB1, app);
-            OfferEntry const& oe = offer->getOffer();
-            REQUIRE(b1Res.sellerID == b1.getPublicKey());
-            checkAmounts(b1Res.amountSold, 25 * assetMultiplier);
-            checkAmounts(oe.amount, 75 * assetMultiplier);
-            line = loadTrustLine(b1, idrCur, app);
-            // 125 where sent, 25 were consumed by B's offer
-            checkAmounts(line->getBalance(), trustLineStartingBalance +
-                                                 (125 - 25) * assetMultiplier);
-            line = loadTrustLine(b1, usdCur, app);
-            checkAmounts(line->getBalance(), 50 * assetMultiplier);
-
-            // A1
-            line = loadTrustLine(a1, idrCur, app);
-            checkAmounts(line->getBalance(), 0);
-            line = loadTrustLine(a1, usdCur, app);
-            checkAmounts(line->getBalance(),
-                         trustLineStartingBalance - 200 * assetMultiplier);
-        }
-
-        SECTION("send with path (takes own offer)")
-        {
-            // raise A1's balance by what we're trying to send
-            applyCreditPaymentTx(app, root, a1, idrCur, rootSeq++, 100 * assetMultiplier, &sk);
-
-            // offer is sell 100 USD for 100 IDR
-            applyCreateOffer(app, delta, 0, a1, usdCur, idrCur, Price(1, 1),
-                             100 * assetMultiplier, a1Seq++);
-
-            // A1: try to send 100 USD to B1 using IDR
-
-            applyPathPaymentTx(app, a1, b1, idrCur, 100 * assetMultiplier,
-                               usdCur, 100 * assetMultiplier, a1Seq++, nullptr, nullptr,
-                               PATH_PAYMENT_OFFER_CROSS_SELF);
-        }
-
-        SECTION("send with path (offer participant reaching limit)")
-        {
-            // make it such that C can only receive 120 USD (4/5th of offerC)
-            applyChangeTrust(app, c1, root, c1Seq++, "USD",
-                             120 * assetMultiplier);
-
-            // A1: try to send 105 IDR to B1 using USD
-            // cost 120 (C's offer maxed out at 4/5th of published amount)
-            //  50 (1/4 of B's offer)=170 USD
-
-            auto res = applyPathPaymentTx(
-                app, a1, b1, usdCur, 400 * assetMultiplier, idrCur,
-                105 * assetMultiplier, a1Seq++, nullptr, nullptr, PATH_PAYMENT_SUCCESS);
-
-            auto& multi = res.success();
-
-            REQUIRE(multi.offers.size() == 2);
-
-            TrustFrame::pointer line;
-
-            // C1
-            // offer was taken
-            REQUIRE(multi.offers[0].offerID == offerC1);
-            REQUIRE(!loadOffer(c1, offerC1, app, false));
-            line = loadTrustLine(c1, idrCur, app);
-            checkAmounts(line->getBalance(),
-                         trustLineStartingBalance - 80 * assetMultiplier);
-            line = loadTrustLine(c1, usdCur, app);
-            checkAmounts(line->getBalance(), line->getTrustLine().limit);
-
-            // B1
-            auto const& b1Res = multi.offers[1];
-            REQUIRE(b1Res.offerID == offerB1);
-            offer = loadOffer(b1, offerB1, app);
-            OfferEntry const& oe = offer->getOffer();
-            REQUIRE(b1Res.sellerID == b1.getPublicKey());
-            checkAmounts(b1Res.amountSold, 25 * assetMultiplier);
-            checkAmounts(oe.amount, 75 * assetMultiplier);
-            line = loadTrustLine(b1, idrCur, app);
-            // 105 where sent, 25 were consumed by B's offer
-            checkAmounts(line->getBalance(), trustLineStartingBalance +
-                                                 (105 - 25) * assetMultiplier);
-            line = loadTrustLine(b1, usdCur, app);
-            checkAmounts(line->getBalance(), 50 * assetMultiplier);
-
-            // A1
-            line = loadTrustLine(a1, idrCur, app);
-            checkAmounts(line->getBalance(), 0);
-            line = loadTrustLine(a1, usdCur, app);
-            checkAmounts(line->getBalance(),
-                         trustLineStartingBalance - 170 * assetMultiplier);
-        }
-        SECTION("missing trust line")
-        {
-            // modify C's trustlines to invalidate C's offer
-            // * C's offer should be deleted
-            // sell 100 IDR for 200 USD
-            // * B's offer 25 IDR by 50 USD
-
-            auto checkBalances = [&]()
-            {
-                auto res = applyPathPaymentTx(
-                    app, a1, b1, usdCur, 200 * assetMultiplier, idrCur,
-                    25 * assetMultiplier, a1Seq++, nullptr, nullptr, PATH_PAYMENT_SUCCESS);
-
-                auto& multi = res.success();
-
-                REQUIRE(multi.offers.size() == 2);
-
-                TrustFrame::pointer line;
-
-                // C1
-                // offer was deleted
-                REQUIRE(multi.offers[0].offerID == offerC1);
-                REQUIRE(multi.offers[0].amountSold == 0);
-                REQUIRE(multi.offers[0].amountBought == 0);
-                REQUIRE(!loadOffer(c1, offerC1, app, false));
-
-                // B1
-                auto const& b1Res = multi.offers[1];
-                REQUIRE(b1Res.offerID == offerB1);
-                offer = loadOffer(b1, offerB1, app);
-                OfferEntry const& oe = offer->getOffer();
-                REQUIRE(b1Res.sellerID == b1.getPublicKey());
-                checkAmounts(b1Res.amountSold, 25 * assetMultiplier);
-                checkAmounts(oe.amount, 75 * assetMultiplier);
-                line = loadTrustLine(b1, idrCur, app);
-                // As B was the sole participant in the exchange, the IDR
-                // balance should not have changed
-                checkAmounts(line->getBalance(), trustLineStartingBalance);
-                line = loadTrustLine(b1, usdCur, app);
-                // but 25 USD cost 50 USD to send
-                checkAmounts(line->getBalance(), 50 * assetMultiplier);
-
-                // A1
-                line = loadTrustLine(a1, idrCur, app);
-                checkAmounts(line->getBalance(), 0);
-                line = loadTrustLine(a1, usdCur, app);
-                checkAmounts(line->getBalance(),
-                             trustLineStartingBalance - 50 * assetMultiplier);
-            };
-
-            SECTION("deleted selling line")
-            {
-                applyCreditPaymentTx(app, c1, root, idrCur, c1Seq++,
-                                     trustLineStartingBalance);
-
-                applyChangeTrust(app, c1, root, c1Seq++, "IDR", 0);
-
-                checkBalances();
-            }
-
-            SECTION("deleted buying line")
-            {
-                applyChangeTrust(app, c1, root, c1Seq++, "USD", 0);
-                checkBalances();
-            }
-        }
+		applyChangeTrust(app, a1, root, a1Seq++, "EUR", trustLineLimit);
+		applyPathPaymentTx(app, root, a1, idrCur, morePayment * 10,
+			eurCur, morePayment, rootSeq++, &sk, nullptr,
+			PATH_PAYMENT_MALFORMED);
     }
 	SECTION("fee") {
-		applyCreateAccountTx(app, root, b1, rootSeq++, 0, &sk);
+		applyCreateAccountTx(app, root, b1, rootSeq++, 0, &sk, CREATE_ACCOUNT_SUCCESS, AccountType::ACCOUNT_REGISTERED_USER);
 		auto b1Seq = getAccountSeqNum(b1, app) + 1;
 		applyChangeTrust(app, a1, root, a1Seq++, "USD", INT64_MAX);
 		applyChangeTrust(app, b1, root, b1Seq++, "USD", INT64_MAX);
@@ -675,29 +497,6 @@ TEST_CASE("payment", "[tx][payment]")
 				applyCreditPaymentTx(app, a1, root, eurCur, a1Seq++, balance);
 				line = loadTrustLine(a1, eurCur, app);
 				REQUIRE(line->getBalance() == 0);
-			}
-			SECTION("success path payment") {
-				applyChangeTrust(app, a1, root, a1Seq++, "IDR", INT64_MAX);
-				applyChangeTrust(app, b1, root, b1Seq++, "IDR", INT64_MAX);
-				applyCreditPaymentTx(app, root, b1, idrCur, rootSeq++, paymentAmount, &sk);
-				applyCreateOffer(app, delta, 0, b1, idrCur, usdCur, Price(1, 1), paymentAmount, b1Seq++);
-
-				auto a1Line = loadTrustLine(a1, usdCur, app, false);
-				auto oldBalance = a1Line->getBalance();
-				OperationFee fee;
-				fee.type(OperationFeeType::opFEE_CHARGED);
-				fee.fee().amountToCharge = paymentAmount / 2;
-				fee.fee().asset = idrCur;
-				applyPathPaymentTx(app, a1, b1, usdCur, paymentAmount, idrCur, paymentAmount, a1Seq++, nullptr, &fee);
-				
-				auto b1Line = loadTrustLine(b1, idrCur, app);
-				REQUIRE(b1Line->getBalance() == paymentAmount - fee.fee().amountToCharge);
-
-				a1Line = loadTrustLine(a1, usdCur, app, false);
-				REQUIRE((a1Line->getBalance() == (oldBalance - paymentAmount)));
-
-				auto commLine = loadTrustLine(commissionSeed, idrCur, app);
-				REQUIRE((commLine->getBalance() == fee.fee().amountToCharge));
 			}
 		}
 	}

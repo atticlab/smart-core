@@ -52,8 +52,7 @@ bool ManageAssetOpFrame::manageAsset(Application& app, LedgerDelta& delta, Ledge
 
 		isNew = true;
 		storedAsset = std::make_shared<AssetFrame>();
-		auto& asset = storedAsset->getAsset();
-		asset.asset = mManageAsset.asset;
+		storedAsset->getAsset().asset = mManageAsset.asset;
 	}
 
 	if (mManageAsset.isDelete)
@@ -64,7 +63,15 @@ bool ManageAssetOpFrame::manageAsset(Application& app, LedgerDelta& delta, Ledge
 		return true;
 	}
 
-	storedAsset->getAsset().isAnonymous = mManageAsset.isAnonymous;
+	AssetEntry& assetEntry = storedAsset->getAsset();
+	assetEntry.isAnonymous = mManageAsset.isAnonymous;
+	assetEntry.maxBalance = -1;
+	assetEntry.maxDailyIn = -1;
+	assetEntry.maxDailyOut = -1;
+	assetEntry.maxMonthlyIn = -1;
+	assetEntry.maxMonthlyOut = -1;
+	assetEntry.maxAnnualIn = -1;
+	assetEntry.maxAnnualOut = -1;
 
 	if (!isNew)
 	{

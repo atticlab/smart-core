@@ -143,6 +143,34 @@ CreateAccountOpFrame::doApply(Application& app,
                                               "operation").Mark();
                     res = CREATE_ACCOUNT_NO_ISSUER;
                     break;
+				case PATH_PAYMENT_ASSET_NOT_ALLOWED:
+					app.getMetrics().NewMeter({ "op-create-account", "failure", "asset-not-allowed" }, "operation").Mark();
+					res = CREATE_ACCOUNT_ASSET_NOT_ALLOWED;
+					break;
+				case PATH_PAYMENT_SRC_ASSET_LIMITS_EXCEEDED:
+					app.getMetrics().NewMeter({ "op-create-account", "failure", "src-asset-limit-exceeded" }, "operation").Mark();
+					res = CREATE_ACCOUNT_SRC_ASSET_LIMITS_EXCEEDED;
+					break;
+				case PATH_PAYMENT_DEST_ASSET_LIMITS_EXCEEDED:
+					app.getMetrics().NewMeter({ "op-create-account", "failure", "dest-asset-limit-exceeded" }, "operation").Mark();
+					res = CREATE_ACCOUNT_DEST_ASSET_LIMITS_EXCEEDED;
+					break;
+				case PATH_PAYMENT_COMMISSION_ASSET_LIMITS_EXCEEDED:
+					app.getMetrics().NewMeter({ "op-create-account", "failure", "com-asset-limit-exceeded" }, "operation").Mark();
+					res = CREATE_ACCOUNT_COMMISSION_ASSET_LIMITS_EXCEEDED;
+					break;
+				case PATH_PAYMENT_SRC_STATS_OVERFLOW:
+					app.getMetrics().NewMeter({ "op-create-account", "failure", "src-stats-overflow" }, "operation").Mark();
+					res = CREATE_ACCOUNT_SRC_STATS_OVERFLOW;
+					break;
+				case PATH_PAYMENT_DEST_STATS_OVERFLOW:
+					app.getMetrics().NewMeter({ "op-create-account", "failure", "src-stats-overflow" }, "operation").Mark();
+					res = CREATE_ACCOUNT_DEST_STATS_OVERFLOW;
+					break;
+				case PATH_PAYMENT_COM_STATS_OVERFLOW:
+					app.getMetrics().NewMeter({ "op-create-account", "failure", "src-stats-overflow" }, "operation").Mark();
+					res = CREATE_ACCOUNT_COM_STATS_OVERFLOW;
+					break;
                 default:
                     throw std::runtime_error("Unexpected error code from pathPayment");
             }
@@ -153,7 +181,7 @@ CreateAccountOpFrame::doApply(Application& app,
         assert(PathPaymentOpFrame::getInnerCode(ppayment.getResult()) ==
                PATH_PAYMENT_SUCCESS);
         
-        app.getMetrics().NewMeter({"op-payment", "success", "apply"}, "operation").Mark();
+        app.getMetrics().NewMeter({"op-create-account", "success", "apply"}, "operation").Mark();
         innerResult().code(CREATE_ACCOUNT_SUCCESS);
         
         return true;

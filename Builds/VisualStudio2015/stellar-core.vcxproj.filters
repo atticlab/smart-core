@@ -576,6 +576,9 @@
     <ClCompile Include="..\..\src\transactions\BalanceManager.cpp">
       <Filter>transactions\validators</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\transactions\TrustLineManager.cpp">
+      <Filter>transactions\validators</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\ledger\LedgerManager.h">
@@ -990,6 +993,9 @@
       <Filter>ledger</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\transactions\BalanceManager.h">
+      <Filter>transactions\validators</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\transactions\TrustLineManager.h">
       <Filter>transactions\validators</Filter>
     </ClInclude>
   </ItemGroup>

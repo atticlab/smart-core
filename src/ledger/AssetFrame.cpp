@@ -17,16 +17,23 @@ namespace stellar
 const char* AssetFrame::kSQLCreateStatement1 =
     "CREATE TABLE asset"
     "("
-	"issuer       VARCHAR(56) NOT NULL,"
-	"code         VARCHAR(12) NOT NULL,"
-    "asset_type   INT NOT NULL,"
-    "anonymous    INT NOT NULL,"
-    "lastmodified INT NOT NULL,"
+	"issuer          VARCHAR(56) NOT NULL,"
+	"code            VARCHAR(12) NOT NULL,"
+    "asset_type      INT NOT NULL,"
+    "anonymous       INT NOT NULL,"
+	"max_balance     BIGINT NOT NULL,"
+	"max_daily_in    BIGINT NOT NULL,"
+	"max_daily_out   BIGINT NOT NULL,"
+	"max_monthly_in  BIGINT NOT NULL,"
+	"max_monthly_out BIGINT NOT NULL,"
+	"max_annual_in   BIGINT NOT NULL,"
+	"max_annual_out  BIGINT NOT NULL,"
+    "lastmodified    INT NOT NULL,"
     "PRIMARY KEY  (issuer, code)"
     ");";
 
 static const char* assetColumnSelector =
-    "SELECT issuer, code, asset_type, anonymous, lastmodified FROM asset";
+    "SELECT issuer, code, asset_type, anonymous, max_balance, max_daily_in, max_daily_out, max_monthly_in, max_monthly_out, max_annual_in, max_annual_out, lastmodified FROM asset";
 
 AssetFrame::AssetFrame() : EntryFrame(ASSET), mAsset(mEntry.data.asset())
 {
@@ -55,7 +62,11 @@ AssetFrame& AssetFrame::operator=(AssetFrame const& other)
 bool
 AssetFrame::isValid(AssetEntry const& oe)
 {
-    return isAssetValid(oe.asset);
+    bool res = isAssetValid(oe.asset);
+	res = res && oe.maxBalance >= -1;
+	res = res && oe.maxDailyIn >= -1 && oe.maxMonthlyIn >= oe.maxDailyIn && oe.maxAnnualIn >= oe.maxMonthlyIn;
+	res = res && oe.maxDailyOut >= -1 && oe.maxMonthlyOut >= oe.maxDailyOut && oe.maxAnnualOut >= oe.maxMonthlyOut;
+	return res;
 }
 
 bool
@@ -67,6 +78,8 @@ AssetFrame::isValid() const
 AssetFrame::pointer
 AssetFrame::loadAsset(Asset const& asset, Database& db, LedgerDelta* delta)
 {
+	if (!isAssetValid(asset))
+		return nullptr;
     AssetFrame::pointer retAsset;
 	AccountID issuer = getIssuer(asset);
     std::string issuerIDStrKey = PubKeyUtils::toStrKey(issuer);
@@ -109,6 +122,13 @@ AssetFrame::loadAssets(StatementContext& prep,
     st.exchange(into(code));
     st.exchange(into(assetType));
     st.exchange(into(anonymous));
+	st.exchange(into(ae.maxBalance));
+	st.exchange(into(ae.maxDailyIn));
+	st.exchange(into(ae.maxDailyOut));
+	st.exchange(into(ae.maxMonthlyIn));
+	st.exchange(into(ae.maxMonthlyOut));
+	st.exchange(into(ae.maxAnnualIn));
+	st.exchange(into(ae.maxAnnualOut));
     st.exchange(into(le.lastModifiedLedgerSeq));
     st.define_and_bind();
     st.execute(true);
@@ -257,13 +277,13 @@ AssetFrame::storeUpdateHelper(LedgerDelta& delta, Database& db, bool insert)
 
     if (insert)
     {
-        sql = "INSERT INTO asset (issuer, code, asset_type, anonymous,lastmodified) VALUES "
-              "(:is,:c,:t,:an,:lm)";
+        sql = "INSERT INTO asset (issuer, code, asset_type, anonymous, max_balance, max_daily_in, max_daily_out, max_monthly_in, max_monthly_out, max_annual_in, max_annual_out, lastmodified) VALUES "
+              "(:is,:c,:t,:an, :mb, :mdi, :mdo, :mmi, :mmo, :mai, :mao, :lm)";
     }
     else
     {
         sql = "UPDATE asset SET anonymous=:an, "
-              "asset_type=:t, lastmodified=:lm WHERE issuer=:is AND code=:c";
+              "asset_type=:t, max_balance=:mb, max_daily_in=:mdi, max_daily_out=:mdo, max_monthly_in=:mmi, max_monthly_out=:mmo, max_annual_in=:mai, max_annual_out=:mao, lastmodified=:lm WHERE issuer=:is AND code=:c";
     }
 
     auto prep = db.getPreparedStatement(sql);
@@ -273,6 +293,13 @@ AssetFrame::storeUpdateHelper(LedgerDelta& delta, Database& db, bool insert)
     st.exchange(use(code, "c"));
     st.exchange(use(assetType, "t"));
     st.exchange(use(anonymous, "an"));
+	st.exchange(use(mAsset.maxBalance, "mb"));
+	st.exchange(use(mAsset.maxDailyIn, "mdi"));
+	st.exchange(use(mAsset.maxDailyOut, "mdo"));
+	st.exchange(use(mAsset.maxMonthlyIn, "mmi"));
+	st.exchange(use(mAsset.maxMonthlyOut, "mmo"));
+	st.exchange(use(mAsset.maxAnnualIn, "mai"));
+	st.exchange(use(mAsset.maxAnnualOut, "mao"));
     st.exchange(use(getLastModified(), "lm"));
     st.define_and_bind();
 
