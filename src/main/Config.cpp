@@ -50,7 +50,7 @@ using xdr::operator<;
     BUCKET_DIR_PATH = "buckets";
 
     DESIRED_BASE_FEE = 0;
-    DESIRED_MAX_TX_PER_LEDGER = 50;
+    DESIRED_MAX_TX_PER_LEDGER = 5000;
 
     HTTP_PORT = DEFAULT_PEER_PORT + 1;
     PUBLIC_HTTP_PORT = false;
