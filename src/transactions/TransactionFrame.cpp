@@ -254,7 +254,7 @@ TransactionFrame::commonValid(Application& app, LedgerDelta* delta,
 			.NewMeter({ "transaction", "invalid", "malformed-fees" },
 				"transaction")
 			.Mark();
-		getResult().result.code(txINTERNAL_ERROR);
+		getResult().result.code(txFEE_COUNT_MISMATCH);
 		return false;
 	}
 
