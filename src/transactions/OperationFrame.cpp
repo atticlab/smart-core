@@ -23,6 +23,7 @@
 #include "transactions/ManageDataOpFrame.h"
 #include "transactions/AdministrativeOpFrame.h"
 #include "transactions/PaymentReversalOpFrame.h"
+#include "transactions/PaymentRefundOpFrame.h"
 #include "database/Database.h"
 
 #include "medida/meter.h"
@@ -65,7 +66,9 @@ OperationFrame::makeHelper(Operation const& op, OperationResult& res, OperationF
 		return shared_ptr<OperationFrame>(new AdministrativeOpFrame(op, res, fee, tx));
 	case PAYMENT_REVERSAL:
 		return shared_ptr<OperationFrame>(new PaymentReversalOpFrame(op, res, fee, tx));
-			
+    case REFUND:
+        return shared_ptr<OperationFrame>(new PaymentRefundOpFrame(op, res, fee, tx));
+            
     default:
         ostringstream err;
         err << "Unknown Tx type: " << op.body.type();

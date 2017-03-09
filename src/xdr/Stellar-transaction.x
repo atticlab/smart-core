@@ -27,7 +27,8 @@ enum OperationType
     INFLATION = 9,
     MANAGE_DATA = 10,
 	ADMINISTRATIVE = 11,
-	PAYMENT_REVERSAL = 12
+	PAYMENT_REVERSAL = 12,
+    REFUND = 13
 };
 
 /* CreateAccount
@@ -259,6 +260,23 @@ struct PaymentReversalOp
 	int64 paymentID;         // id of payment to be reversed
 };
 
+/* Refund
+
+    Returns payment to sender
+
+    Threshold: med
+
+    Result: RefundResult
+*/
+struct RefundOp
+{
+    AccountID paymentSource; // sender of payment to be refunded
+    Asset asset;             // what they end up with
+    int64 amount;            // amount they end up with
+    int64 originalAmount;    // amount of the original transaction
+    int64 paymentID;         // id of payment to be refunded
+};
+
 /* An operation is the lowest unit of work that a transaction does */
 struct Operation
 {
@@ -295,6 +313,8 @@ struct Operation
 		AdministrativeOp adminOp;
 	case PAYMENT_REVERSAL:
 		PaymentReversalOp paymentReversalOp;
+    case REFUND:
+        RefundOp refundOp;
     }
     body;
 };
@@ -763,6 +783,40 @@ default:
     void;
 };
 
+/******* Refund Result ********/
+
+enum RefundResultCode
+{
+    // codes considered as "success" for the operation
+    REFUND_SUCCESS = 0, // payment successfuly completed
+
+    // codes considered as "failure" for the operation
+    REFUND_UNDERFUNDED = -1,                   // not enough funds in source account
+    REFUND_SRC_NO_TRUST = -2,                  // no trust line on source account
+    REFUND_SRC_NOT_AUTHORIZED = -3,            // source not authorized to transfer
+    REFUND_NO_PAYMENT_SENDER = -4,             // destination account does not exist
+    REFUND_NO_PAYMENT_SENDER_TRUST = -5,       // destination missing a trust line for asset
+    REFUND_PAYMENT_SENDER_NOT_AUTHORIZED = -6, // destination not authorized to hold asset
+    REFUND_PAYMENT_SENDER_LINE_FULL = -7,      // destination would go above their limit
+    REFUND_NO_ISSUER = -8,                     // missing issuer on asset
+    REFUND_PAYMENT_DOES_NOT_EXISTS = -11,      // payment with such id does not exists
+    REFUND_INVALID_AMOUNT = -12,               // amount is not equal to amount in payment
+    REFUND_INVALID_PAYMENT_SENDER = -14,       // payment sender is not equal to source in payment
+    REFUND_INVALID_SOURCE = -15,               // source of reversal is not equal payment destination
+    REFUND_INVALID_ASSET = -16,                // asset is not equal to asset in payment
+    REFUND_MALFORMED = -17,                    // reversal payment is malformed in some way
+    REFUND_NOT_ALLOWED = -18,                  // reversal payment is not allowed for this account type
+    REFUND_ALREADY_REFUNDED = -19              // payment already have been refunded
+};
+
+union RefundResult switch (RefundResultCode code)
+{
+    case REFUND_SUCCESS:
+        void;
+    default:
+        void;
+};
+
 /* High level Operation Result */
 
 enum OperationResultCode
@@ -804,6 +858,8 @@ case opINNER:
 		AdministrativeResult adminResult;
 	case PAYMENT_REVERSAL:
 		PaymentReversalResult paymentReversalResult;
+    case REFUND:
+        RefundResult refundResult;
     }
     tr;
 default:

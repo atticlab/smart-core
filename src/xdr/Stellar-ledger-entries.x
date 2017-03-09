@@ -88,7 +88,8 @@ enum LedgerEntryType
     TRUSTLINE = 1,
     OFFER = 2,
     DATA = 3,
-	REVERSED_PAYMENT = 4
+	REVERSED_PAYMENT = 4,
+    REFUNDED_PAYMENT = 5
 };
 
 struct Signer
@@ -252,6 +253,24 @@ struct ReversedPaymentEntry
     ext;
 };
 
+/* RefundEntry
+    Refund data.
+*/
+struct RefundEntry
+{
+    int64 rID;                  // id of refund
+    Asset asset;                // type of asset (with issuer)
+    int64 refundedAmount;       // already refunded amount
+    int64 totalOriginalAmount;  // the amount of the original operation
+    // reserved for future use
+    union switch (int v)
+    {
+    case 0:
+        void;
+    }
+    ext;
+};
+
 
 struct LedgerEntry
 {
@@ -269,6 +288,8 @@ struct LedgerEntry
         DataEntry data;
 	case REVERSED_PAYMENT:
 		ReversedPaymentEntry reversedPayment;
+    case REFUNDED_PAYMENT:
+        RefundEntry refundedPayment;
     }
     data;
 

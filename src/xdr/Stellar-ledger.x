@@ -127,6 +127,11 @@ case REVERSED_PAYMENT:
 	{
 		int64 rID;
 	} reversedPayment;
+case REFUNDED_PAYMENT:
+    struct
+    {
+        int64 rID;
+    } refundedPayment;
 };
 
 enum BucketEntryType

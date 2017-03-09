@@ -15,6 +15,7 @@
 #include "ledger/LedgerDelta.h"
 #include "ledger/DataFrame.h"
 #include "ledger/ReversedPaymentFrame.h"
+#include "ledger/RefundedPaymentFrame.h"
 #include "transactions/PathPaymentOpFrame.h"
 #include "transactions/PaymentOpFrame.h"
 #include "transactions/ChangeTrustOpFrame.h"
@@ -27,6 +28,7 @@
 #include "transactions/ManageDataOpFrame.h"
 #include "transactions/AdministrativeOpFrame.h"
 #include "transactions/PaymentReversalOpFrame.h"
+#include "transactions/PaymentRefundOpFrame.h"
 
 using namespace stellar;
 using namespace stellar::txtest;
@@ -986,6 +988,43 @@ void applyPaymentReversalOp(Application& app, SecretKey& source, SequenceNumber 
 	}
 }
 
+TransactionFramePtr createPaymentRefundOp(Hash const& networkID, SecretKey& source, SequenceNumber seq,
+    int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 originalAmount)
+    {
+        Operation op;
+        op.body.type(REFUND);
+        RefundOp& refund = op.body.refundOp();
+        refund.paymentID = paymentID;
+        refund.paymentSource = paymentSource.getPublicKey();
+        refund.asset = asset;
+        refund.amount = amount;
+        refund.originalAmount = originalAmount;
+        auto tx = transactionFromOperation(networkID, source, seq, op);
+        return tx;
+    }
+
+    
+    void applyPaymentRefundOp(Application& app, SecretKey& source, SequenceNumber seq,
+                              int64 paymentID, SecretKey& paymentSource, Asset& asset, int64 amount, int64 originalAmount,
+                              RefundResultCode targetResult)
+    {
+        TransactionFramePtr txFrame =
+        createPaymentRefundOp(app.getNetworkID(), source, seq, paymentID, paymentSource, asset, amount, originalAmount);
+        
+        LedgerDelta delta(app.getLedgerManager().getCurrentLedgerHeader(),
+                          app.getDatabase());
+        applyCheck(txFrame, delta, app);
+        
+        REQUIRE(PaymentRefundOpFrame::getInnerCode(
+                txFrame->getResult().result.results()[0]) == targetResult);
+        
+        if (targetResult == REFUND_SUCCESS) {
+            LedgerKey key;
+            key.type(REFUNDED_PAYMENT);
+            key.refundedPayment().rID = paymentID;
+            REQUIRE(RefundedPaymentFrame::exists(app.getDatabase(), key));
+        }
+    }
 
 
 OperationFrame const&
