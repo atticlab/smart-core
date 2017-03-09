@@ -479,7 +479,12 @@ enum PaymentResultCode
     PAYMENT_NO_TRUST = -6,       // destination missing a trust line for asset
     PAYMENT_NOT_AUTHORIZED = -7, // destination not authorized to hold asset
     PAYMENT_LINE_FULL = -8,      // destination would go above their limit
-    PAYMENT_NO_ISSUER = -9       // missing issuer on asset
+    PAYMENT_NO_ISSUER = -9,       // missing issuer on asset
+    PAYMENT_FEE_ASSET_MISMATCH = -10,   // the fee asset is different from the operation asset
+    PAYMENT_NEGATIVE_FEE = -11,         // the fee can't be negative
+    PAYMENT_NEGATIVE_AMOUNT = -12,      // the amount is negative
+    PAYMENT_AMOUNT_LESS_THAN_FEE = -13, // the fee is more than the sent amount
+    PAYMENT_INVALID_ASSET = -14         // the asset is invalid
 };
 
 union PaymentResult switch (PaymentResultCode code)
@@ -882,7 +887,8 @@ enum TransactionResultCode
     txNO_ACCOUNT = -8,           // source account not found
     txINSUFFICIENT_FEE = -9,     // fee is too small
     txBAD_AUTH_EXTRA = -10,      // unused signatures attached to transaction
-    txINTERNAL_ERROR = -11       // an unknown error occured
+    txINTERNAL_ERROR = -11,      // an unknown error occured
+    txFEE_COUNT_MISMATCH = -12   // the number of fees differs from the number of opeartions
 };
 
 struct TransactionResult

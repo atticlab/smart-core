@@ -96,7 +96,7 @@ TEST_CASE("payment", "[tx][payment]")
 		{
 			auto a1Asset = makeAsset(a1, "AAA");
 			fee.fee().asset = a1Asset;
-			applyCreditPaymentTx(app, a1, newAccount, a1Asset, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_MALFORMED);
+			applyCreditPaymentTx(app, a1, newAccount, a1Asset, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_INVALID_ASSET);
 		}
 		// create an account
 		applyCreateAccountTx(app, root, b1, rootSeq++, 0, &sk);
@@ -256,7 +256,7 @@ TEST_CASE("payment", "[tx][payment]")
 	SECTION("Invalid issuer") {
 		applyChangeTrust(app, a1, b1, a1Seq++, "USD", INT64_MAX, CHANGE_TRUST_MALFORMED);
 		auto invalidCur = makeAsset(b1, "USD");
-		applyCreditPaymentTx(app, a1, b1, invalidCur, a1Seq++, 123, nullptr, nullptr, PAYMENT_MALFORMED);
+		applyCreditPaymentTx(app, a1, b1, invalidCur, a1Seq++, 123, nullptr, nullptr, PAYMENT_INVALID_ASSET);
 	}
     SECTION("payment through path")
     {
@@ -522,7 +522,7 @@ TEST_CASE("payment", "[tx][payment]")
 				env.operationFees.clear();
 				auto payment = std::make_shared<TransactionFrame>(app.getNetworkID(), env);
 				applyCheck(payment, delta, app);
-				REQUIRE(payment->getResultCode() == txINTERNAL_ERROR);
+				REQUIRE(payment->getResultCode() == txFEE_COUNT_MISMATCH);
 			}
 			SECTION("Fee is too big") {
 				auto paymentFrame = createCreditPaymentTx(app.getNetworkID(), a1, b1, usdCur, a1Seq++, paymentAmount);
@@ -532,25 +532,27 @@ TEST_CASE("payment", "[tx][payment]")
 				env.operationFees.push_back(fee);
 				auto payment = std::make_shared<TransactionFrame>(app.getNetworkID(), env);
 				applyCheck(payment, delta, app);
-				REQUIRE(payment->getResultCode() == txINTERNAL_ERROR);
+				REQUIRE(payment->getResultCode() == txFEE_COUNT_MISMATCH);
 			}
 			SECTION("fee - invalid asset") {
 				OperationFee fee;
 				fee.type(OperationFeeType::opFEE_CHARGED);
 				fee.fee().amountToCharge = paymentAmount / 2;
-				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_MALFORMED);
+				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_FEE_ASSET_MISMATCH);
 			}
 			SECTION("negative fee") {
 				OperationFee fee;
 				fee.type(OperationFeeType::opFEE_CHARGED);
+                fee.fee().asset = usdCur;
 				fee.fee().amountToCharge = -2;
-				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_MALFORMED);
+				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_NEGATIVE_FEE);
 			}
 			SECTION("fee greater than amount") {
 				OperationFee fee;
 				fee.type(OperationFeeType::opFEE_CHARGED);
-				fee.fee().amountToCharge = paymentAmount * 2;
-				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_MALFORMED);
+                fee.fee().asset = usdCur;
+                fee.fee().amountToCharge = paymentAmount * 2;
+				applyCreditPaymentTx(app, a1, b1, usdCur, a1Seq++, paymentAmount, nullptr, &fee, PAYMENT_AMOUNT_LESS_THAN_FEE);
 			}
 			SECTION("issuer large amounts")
 			{

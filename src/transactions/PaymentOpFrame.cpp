@@ -138,32 +138,39 @@ PaymentOpFrame::doCheckValid(Application& app)
 		if (!(mFee->fee().asset == mPayment.asset)) {
 			app.getMetrics().NewMeter({ "op-payment", "failure", "fee-invalid-asset" },
 				"operation").Mark();
-			innerResult().code(PAYMENT_MALFORMED);
+			innerResult().code(PAYMENT_FEE_ASSET_MISMATCH);
 			return false;
 		}
 
 		if (mFee->fee().amountToCharge < 0) {
 			app.getMetrics().NewMeter({ "op-payment", "failure", "fee-invalid-amount" },
 				"operation").Mark();
-			innerResult().code(PAYMENT_MALFORMED);
+			innerResult().code(PAYMENT_NEGATIVE_FEE);
 			return false;
 		}
 
 		commission = mFee->fee().amountToCharge;
 	}
 
+    if (mPayment.amount <= 0)
+    {
+        app.getMetrics().NewMeter({"op-payment", "invalid", "malformed-negative-amount"},
+                                  "operation").Mark();
+        innerResult().code(PAYMENT_NEGATIVE_AMOUNT);
+        return false;
+    }
     if (mPayment.amount - commission <= 0)
     {
         app.getMetrics().NewMeter({"op-payment", "invalid", "malformed-negative-amount"},
-                         "operation").Mark();
-        innerResult().code(PAYMENT_MALFORMED);
+                                  "operation").Mark();
+        innerResult().code(PAYMENT_AMOUNT_LESS_THAN_FEE);
         return false;
     }
     if (!isAssetValid(app.getIssuer(), mPayment.asset))
     {
         app.getMetrics().NewMeter({"op-payment", "invalid", "malformed-invalid-asset"},
                          "operation").Mark();
-        innerResult().code(PAYMENT_MALFORMED);
+        innerResult().code(PAYMENT_INVALID_ASSET);
         return false;
     }
     return true;
