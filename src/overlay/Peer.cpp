@@ -178,10 +178,39 @@ Peer::sendHello()
     elo.networkID = mApp.getNetworkID();
     elo.listeningPort = mApp.getConfig().PEER_PORT;
     elo.peerID = mApp.getConfig().NODE_SEED.getPublicKey();
+    elo.ledgerNum = mApp.getLedgerManager().getLastClosedLedgerNum();
     elo.cert = this->getAuthCert();
     elo.nonce = mSendNonce;
     sendMessage(msg);
 }
+
+void
+Peer::sendAlive(SecretKey secret)
+{
+    // send top 50 peers we know about
+    auto slotFromNodes = mApp.getHerder().getLastSlotFromNodes();
+    StellarMessage newMsg;
+    newMsg.type(ALIVE);
+    newMsg.alive().reserve(slotFromNodes.size() + 1);
+    Alive ali;
+    ali.ledgerNum = mApp.getHerder().getCurrentLedgerSeq();
+    ali.nonce = mApp.timeNow();
+    ali.peerID = mApp.getConfig().NODE_SEED.getPublicKey();
+
+    ali.sig = secret.sign(xdr::xdr_to_opaque(ali.peerID, ali.ledgerNum, ali.nonce));
+    newMsg.alive().push_back(ali);
+
+    for (auto const& pr : slotFromNodes)
+    {
+        ali.ledgerNum = pr.second.ledgerNum;
+        ali.nonce = pr.second.nonce;
+        ali.peerID = pr.first;
+        ali.sig = pr.second.sig;
+        newMsg.alive().push_back(ali);
+    }
+    sendMessage(newMsg);
+}
+
 
 AuthCert
 Peer::getAuthCert()
@@ -505,7 +534,7 @@ Peer::sendMessage(StellarMessage const& msg)
 
 void
 Peer::recvMessage(xdr::msg_ptr const& msg)
-{
+{ 
     if (shouldAbort())
     {
         return;
@@ -555,7 +584,7 @@ Peer::recvMessage(AuthenticatedMessage const& msg)
         return;
     }
 
-    if (mState >= GOT_HELLO && msg.v0().message.type() != ERROR_MSG)
+    if (mState >= GOT_HELLO && (msg.v0().message.type() != ERROR_MSG || msg.v0().message.type() != ALIVE))
     {
         if (msg.v0().sequence != mRecvMacSeq)
         {
@@ -597,7 +626,8 @@ Peer::recvMessage(StellarMessage const& stellarMsg)
                                << mApp.getConfig().toShortString(mPeerID);
 
     if (!isAuthenticated() && (stellarMsg.type() != HELLO) &&
-        (stellarMsg.type() != AUTH) && (stellarMsg.type() != ERROR_MSG))
+        (stellarMsg.type() != AUTH) && (stellarMsg.type() != ERROR_MSG)&&
+        (stellarMsg.type() != ALIVE ))
     {
         CLOG(WARNING, "Overlay") << "recv: " << stellarMsg.type()
                                  << " before completed handshake";
@@ -607,7 +637,7 @@ Peer::recvMessage(StellarMessage const& stellarMsg)
     }
 
     assert(isAuthenticated() || stellarMsg.type() == HELLO ||
-           stellarMsg.type() == AUTH || stellarMsg.type() == ERROR_MSG);
+           stellarMsg.type() == AUTH || stellarMsg.type() == ERROR_MSG || stellarMsg.type() == ALIVE);
 
     switch (stellarMsg.type())
     {
@@ -622,6 +652,12 @@ Peer::recvMessage(StellarMessage const& stellarMsg)
     {
         auto t = mRecvHelloTimer.TimeScope();
         this->recvHello(stellarMsg.hello());
+    }
+    break;
+    case ALIVE:
+    {
+        auto t = mRecvHelloTimer.TimeScope();
+        this->recvAlive(stellarMsg);
     }
     break;
 
@@ -893,6 +929,7 @@ Peer::recvHello(Hello const& elo)
     mRemoteOverlayVersion = elo.overlayVersion;
     mRemoteVersion = elo.versionStr;
     mPeerID = elo.peerID;
+    mLedgerNum = elo.ledgerNum;
     mRecvNonce = elo.nonce;
     mSendMacSeq = 0;
     mRecvMacSeq = 0;
@@ -979,6 +1016,33 @@ Peer::recvHello(Hello const& elo)
         sendAuth();
     }
 }
+
+
+void
+Peer::recvAlive(StellarMessage const& msg)
+{
+    using xdr::operator==;
+    auto& peerAuth = mApp.getOverlayManager().getPeerAuth();
+
+    CLOG(DEBUG, "Overlay") << "recvAlive from " << toString();
+
+    for (auto const& ali : msg.alive())
+    {
+        if (ali.peerID == mApp.getConfig().NODE_SEED.getPublicKey())
+        {
+            CLOG(WARNING, "Overlay") << "info about self";
+            //mDropInRecvHelloSelfMeter.Mark();
+            continue;
+        }
+        Herder::PeerInfo peerInfo;
+        peerInfo.ledgerNum = ali.ledgerNum;
+        peerInfo.nonce = ali.nonce;
+        peerInfo.sig = ali.sig;
+        mApp.getHerder().setLastSlotFromNode(ali.peerID, peerInfo);
+
+    }
+}
+
 
 void
 Peer::recvAuth(StellarMessage const& msg)

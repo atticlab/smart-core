@@ -52,7 +52,10 @@ class TestSCP : public SCPDriver
             std::make_shared<SCPQuorumSet>(mSCP.getLocalQuorumSet());
         storeQuorumSet(localQSet);
     }
-
+    uint32 getPendingTransactionsCounter() override
+    {
+        return pendingTransactions; 
+    }
     void
     signEnvelope(SCPEnvelope&) override
     {
@@ -136,6 +139,7 @@ class TestSCP : public SCPDriver
 
     std::set<Value> mExpectedCandidates;
     Value mCompositeValue;
+    uint32 pendingTransactions;
 
     // override the internal hashing scheme in order to make tests
     // more predictable.
@@ -2108,9 +2112,94 @@ TEST_CASE("nomination tests core5", "[scp][nominationprotocol]")
     SECTION("nomination - v0 is top")
     {
         TestSCP scp(v0SecretKey, qSet);
+        scp.pendingTransactions = 1;
         uint256 qSetHash0 = scp.mSCP.getLocalNode()->getQuorumSetHash();
         scp.storeQuorumSet(std::make_shared<SCPQuorumSet>(qSet));
+        SECTION("do not start ballot without pending Transactions")
+        {
+            REQUIRE(scp.nominate(0, xValue, false));
 
+            std::vector<Value> votes, accepted;
+            votes.emplace_back(xValue);
+
+            REQUIRE(scp.mEnvs.size() == 1);
+            verifyNominate(scp.mEnvs[0], v0SecretKey, qSetHash0, 0, votes,
+                           accepted);
+
+            SCPEnvelope nom0 =
+                makeNominate(v0SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope nom2 =
+                makeNominate(v2SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope nom3 =
+                makeNominate(v3SecretKey, qSetHash, 0, votes, accepted);
+
+            scp.receiveEnvelope(nom0);
+            scp.receiveEnvelope(nom2);
+            scp.receiveEnvelope(nom3);
+
+            REQUIRE(scp.mEnvs.size() == 1);
+
+        }
+        SECTION("others nominate what v0 says (x) -> (not prepare x, skip because pending=0)")
+        {
+            scp.pendingTransactions = 0;
+            REQUIRE(scp.nominate(0, xValue, false));
+
+            std::vector<Value> votes, accepted;
+            votes.emplace_back(xValue);
+
+            REQUIRE(scp.mEnvs.size() == 1);
+            verifyNominate(scp.mEnvs[0], v0SecretKey, qSetHash0, 0, votes,
+                           accepted);
+
+            SCPEnvelope nom1 =
+                makeNominate(v1SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope nom2 =
+                makeNominate(v2SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope nom3 =
+                makeNominate(v3SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope nom4 =
+                makeNominate(v4SecretKey, qSetHash, 0, votes, accepted);
+
+            // nothing happens yet
+            scp.receiveEnvelope(nom1);
+            scp.receiveEnvelope(nom2);
+            REQUIRE(scp.mEnvs.size() == 1);
+
+            // this causes 'x' to be accepted (quorum)
+            scp.receiveEnvelope(nom3);
+            REQUIRE(scp.mEnvs.size() == 2);
+
+            scp.mExpectedCandidates.emplace(xValue);
+            scp.mCompositeValue = xValue;
+
+            accepted.emplace_back(xValue);
+            verifyNominate(scp.mEnvs[1], v0SecretKey, qSetHash0, 0, votes,
+                           accepted);
+
+            // extra message doesn't do anything
+            scp.receiveEnvelope(nom4);
+            REQUIRE(scp.mEnvs.size() == 2);
+
+            SCPEnvelope acc1 =
+                makeNominate(v1SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope acc2 =
+                makeNominate(v2SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope acc3 =
+                makeNominate(v3SecretKey, qSetHash, 0, votes, accepted);
+            SCPEnvelope acc4 =
+                makeNominate(v4SecretKey, qSetHash, 0, votes, accepted);
+
+            // nothing happens yet
+            scp.receiveEnvelope(acc1);
+            scp.receiveEnvelope(acc2);
+            REQUIRE(scp.mEnvs.size() == 2);
+
+            scp.mCompositeValue = xValue;
+            scp.receiveEnvelope(acc3);
+            REQUIRE(scp.mEnvs.size() == 2);
+
+        }
         SECTION("others nominate what v0 says (x) -> prepare x")
         {
             REQUIRE(scp.nominate(0, xValue, false));
@@ -2433,12 +2522,9 @@ TEST_CASE("nomination tests core5", "[scp][nominationprotocol]")
             {
                 scp.mExpectedCandidates.emplace(xValue);
                 scp.mCompositeValue = xValue;
-
-                // note: value passed in here should be ignored
                 REQUIRE(scp.nominate(0, zValue, true));
                 // picks up 'x' from v1 (as we already have 'y')
                 // which also happens to causes 'x' to be accepted
-                REQUIRE(scp.mEnvs.size() == 2);
                 verifyNominate(scp.mEnvs[1], v0SecretKey, qSetHash0, 0, votesXY,
                                votesX);
             }

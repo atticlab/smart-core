@@ -38,9 +38,21 @@ struct Hello
     string versionStr<100>;
     int listeningPort;
     NodeID peerID;
+    uint32_t ledgerNum;
     AuthCert cert;
     uint256 nonce;
 };
+
+struct Alive
+{
+    NodeID peerID;
+    uint32_t ledgerNum;
+    AuthCert cert;
+    uint64 nonce;
+    Signature sig;
+};
+
+
 
 struct Auth
 {
@@ -90,7 +102,8 @@ enum MessageType
     GET_SCP_STATE = 12,
 
     // new messages
-    HELLO = 13
+    HELLO = 13,
+    ALIVE = 14
 };
 
 struct DontHave
@@ -105,6 +118,8 @@ case ERROR_MSG:
     Error error;
 case HELLO:
     Hello hello;
+case ALIVE:
+    Alive alive<>;
 case AUTH:
     Auth auth;
 case DONT_HAVE:

@@ -22,7 +22,7 @@ class SCPDriver
     virtual ~SCPDriver()
     {
     }
-
+    virtual uint32 getPendingTransactionsCounter() = 0; 
     // Envelope signature/verification
     virtual void signEnvelope(SCPEnvelope& envelope) = 0;
     virtual bool verifyEnvelope(SCPEnvelope const& envelope) = 0;

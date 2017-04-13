@@ -10,6 +10,7 @@
 #include "util/Timer.h"
 #include "database/Database.h"
 #include "util/NonCopyable.h"
+#include "crypto/SecretKey.h"
 
 namespace medida
 {
@@ -52,6 +53,7 @@ class Peer : public std::enable_shared_from_this<Peer>,
 
     static medida::Meter& getByteReadMeter(Application& app);
     static medida::Meter& getByteWriteMeter(Application& app);
+    void sendAlive(SecretKey secret);
 
   protected:
     Application& mApp;
@@ -59,6 +61,7 @@ class Peer : public std::enable_shared_from_this<Peer>,
     PeerRole mRole;
     PeerState mState;
     NodeID mPeerID;
+    uint64 mLedgerNum;
     uint256 mSendNonce;
     uint256 mRecvNonce;
 
@@ -145,6 +148,7 @@ class Peer : public std::enable_shared_from_this<Peer>,
     void recvDontHave(StellarMessage const& msg);
     void recvGetPeers(StellarMessage const& msg);
     void recvHello(Hello const& elo);
+    void recvAlive(StellarMessage const& msg);
     void recvPeers(StellarMessage const& msg);
 
     void recvGetTxSet(StellarMessage const& msg);
@@ -241,6 +245,12 @@ class Peer : public std::enable_shared_from_this<Peer>,
     getPeerID()
     {
         return mPeerID;
+    }
+
+    uint64
+    getLedgerNum()
+    {
+        return mLedgerNum;
     }
 
     std::string toString();
